@@ -86,8 +86,9 @@ async def init_db() -> None:
     logger.info("Creating database tables...")
     
     async with engine.begin() as conn:
-        # Создаем все таблицы
-        await conn.run_sync(Base.metadata.create_all)
+        # Создаем все таблицы только если они не существуют
+        # Миграции Alembic должны управлять схемой БД
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
     
     logger.info("Database tables created successfully")
 

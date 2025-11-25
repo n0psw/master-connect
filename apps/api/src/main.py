@@ -63,6 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     try:
         # Применяем миграции Alembic автоматически
+        migrations_success = False
         try:
             import subprocess
             import os
@@ -77,6 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             )
             if result.returncode == 0:
                 logger.info("Database migrations applied successfully")
+                migrations_success = True
             else:
                 logger.warning(f"Migration warning: {result.stderr}")
         except FileNotFoundError:
@@ -84,8 +86,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             logger.warning(f"Could not run migrations automatically: {e}")
         
-        # Инициализация базы данных
-        await init_db()
+        # Инициализация базы данных (создание таблиц только если миграции не применились)
+        if not migrations_success:
+            logger.info("Migrations failed, creating tables from models...")
+            await init_db()
+        else:
+            logger.info("Migrations applied, skipping table creation from models")
         logger.info("Database initialized successfully")
         
         # Запускаем фоновую задачу для истечения HOLD бронирований
