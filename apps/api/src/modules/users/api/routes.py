@@ -66,8 +66,20 @@ async def get_my_profile(
     user_service: UserService = Depends(get_user_service)
 ) -> UserWithProfile:
     """Получение своего профиля."""
-    profile = await user_service.get_user_by_id(current_user.id, include_profile=True)
-    return profile
+    try:
+        profile = await user_service.get_user_by_id(current_user.id, include_profile=True)
+        return profile
+    except NotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+    except Exception as e:
+        logger.error("Error getting user profile", user_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.put(
@@ -134,14 +146,23 @@ async def get_my_student_profile(
             detail="Доступно только для студентов"
         )
     
-    profile = await student_service.get_student_profile(current_user.id)
-    if not profile:
+    try:
+        profile = await student_service.get_student_profile(current_user.id)
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Профиль студента не найден"
+            )
+        
+        return profile
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error getting student profile", user_id=current_user.id, error=str(e))
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Профиль студента не найден"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
         )
-    
-    return profile
 
 
 @router.put(
