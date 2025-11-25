@@ -38,6 +38,21 @@
 - **Исправление**: Добавлена обработка ошибок (try/except) для всех роутов availability с правильными статус кодами
 - **Файл**: `apps/api/src/modules/availability/api/routes.py`
 
+#### ✅ Chat routes
+- **Проблема**: Роуты не имели обработки ошибок
+- **Исправление**: Добавлена обработка ошибок для всех роутов chat
+- **Файл**: `apps/api/src/modules/chat/api/routes.py`
+
+#### ✅ Reviews routes
+- **Проблема**: Дубликат функции `get_my_reviews` (определена дважды)
+- **Исправление**: Удален дубликат функции
+- **Файл**: `apps/api/src/modules/reviews/api/routes.py`
+
+#### ✅ Users routes
+- **Проблема**: Некоторые роуты не имели обработки ошибок
+- **Исправление**: Добавлена обработка ошибок для `get_my_profile` и `get_my_student_profile`
+- **Файл**: `apps/api/src/modules/users/api/routes.py`
+
 ### 4. API клиенты (Frontend)
 
 #### ✅ Availability API
@@ -68,11 +83,17 @@
 - ✅ Add notifications table - исправлена (добавлен `updated_at`)
 
 ### API роуты
-- ✅ Availability routes - проверены, обработка ошибок присутствует
+- ✅ Availability routes - исправлены, добавлена обработка ошибок
+- ✅ Chat routes - исправлены, добавлена обработка ошибок
+- ✅ Reviews routes - исправлены, удален дубликат
+- ✅ Users routes - исправлены, добавлена обработка ошибок
 - ✅ Bookings routes - проверены, обработка ошибок присутствует
 - ✅ Admin routes - проверены, обработка ошибок присутствует
 - ✅ Mentors routes - проверены, обработка ошибок присутствует
 - ✅ Auth routes - проверены, обработка ошибок присутствует
+- ✅ Support routes - проверены, обработка ошибок присутствует
+- ✅ Notifications routes - проверены, обработка ошибок присутствует
+- ✅ Payments routes - проверены, обработка ошибок присутствует
 
 ### Фронтенд страницы
 - ✅ MentorAvailabilityPage - проверена, обработка ошибок через `onError` в `useQuery`/`useMutation`
@@ -100,6 +121,7 @@
 4. `fix availability api getMyAvailabilitySettings to use correct endpoint`
 5. `add error handling to all availability routes`
 6. `add audit script and summary of all fixes`
+7. `add error handling to chat routes, remove duplicate route in reviews, add error handling to users routes`
 
 ## Следующие шаги
 
