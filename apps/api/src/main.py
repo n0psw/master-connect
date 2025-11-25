@@ -62,6 +62,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting MasterConnect API...")
     
     try:
+        # Применяем миграции Alembic автоматически
+        try:
+            import subprocess
+            import os
+            logger.info("Running database migrations...")
+            result = subprocess.run(
+                ["alembic", "upgrade", "head"],
+                cwd="/app",
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env=os.environ.copy()
+            )
+            if result.returncode == 0:
+                logger.info("Database migrations applied successfully")
+            else:
+                logger.warning(f"Migration warning: {result.stderr}")
+        except FileNotFoundError:
+            logger.warning("Alembic not found, skipping migrations")
+        except Exception as e:
+            logger.warning(f"Could not run migrations automatically: {e}")
+        
         # Инициализация базы данных
         await init_db()
         logger.info("Database initialized successfully")
