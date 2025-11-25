@@ -330,7 +330,7 @@ export const AdminBookingsPage = () => {
 
   // Мутация для экспорта
   const exportMutation = useMutation(
-    () => adminApi.exportBookings(searchFilters, 'csv'),
+    () => adminApi.exportBookings({ ...searchFilters, format: 'csv' }),
     {
       onSuccess: (blob) => {
         const url = window.URL.createObjectURL(blob)
@@ -454,7 +454,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-yellow-600">
-                {bookingsData?.bookings?.filter(b => b.status === 'AWAITING_VERIFICATION').length || 0}
+                {bookingsData?.items?.filter(b => b.status === 'AWAITING_VERIFICATION').length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Ожидают</div>
             </CardContent>
@@ -462,7 +462,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-green-600">
-                {bookingsData?.bookings?.filter(b => b.status === 'CONFIRMED').length || 0}
+                {bookingsData?.items?.filter(b => b.status === 'CONFIRMED').length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Подтверждены</div>
             </CardContent>
@@ -470,7 +470,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-blue-600">
-                {bookingsData?.bookings?.filter(b => b.status === 'COMPLETED').length || 0}
+                {bookingsData?.items?.filter(b => b.status === 'COMPLETED').length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Завершены</div>
             </CardContent>
@@ -478,7 +478,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-red-600">
-                {bookingsData?.bookings?.filter(b => b.status === 'CANCELLED').length || 0}
+                {bookingsData?.items?.filter(b => b.status === 'CANCELLED').length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Отменены</div>
             </CardContent>
@@ -486,7 +486,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-green-600">
-                {((bookingsData?.bookings?.reduce((sum, b) => sum + (b.status === 'COMPLETED' ? (Number(getPrice(b)) || 0) : 0), 0) ?? 0)).toFixed(0)}
+                {((bookingsData?.items?.reduce((sum, b) => sum + (b.status === 'COMPLETED' ? (Number(getPrice(b)) || 0) : 0), 0) ?? 0)).toFixed(0)}
               </div>
               <div className="text-sm text-muted-foreground">Доход</div>
             </CardContent>
@@ -553,8 +553,8 @@ export const AdminBookingsPage = () => {
                           </td>
                         </tr>
                       ))
-                    ) : bookingsData?.bookings?.length ? (
-                      bookingsData.bookings.map((booking) => (
+                    ) : bookingsData?.items?.length ? (
+                      bookingsData.items.map((booking) => (
                         <tr key={booking.id} className="border-b hover:bg-muted/50">
                           <td className="py-4 px-4">
                             <div className="space-y-2">
