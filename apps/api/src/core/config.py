@@ -41,19 +41,19 @@ class Settings(BaseSettings):
     # CORS (парсится в валидаторе из строки в список)
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8080"]
     
-    # Файловое хранилище (S3)
+    # Файловое хранилище (S3) - опционально, если не используется
     S3_ENDPOINT: Optional[str] = None
-    S3_BUCKET: str
-    S3_ACCESS_KEY: str
-    S3_SECRET_KEY: str
+    S3_BUCKET: Optional[str] = None
+    S3_ACCESS_KEY: Optional[str] = None
+    S3_SECRET_KEY: Optional[str] = None
     S3_REGION: str = "us-east-1"
     
-    # Email
-    EMAIL_SMTP_HOST: str
+    # Email - опционально, если не используется
+    EMAIL_SMTP_HOST: Optional[str] = None
     EMAIL_SMTP_PORT: int = 587
-    EMAIL_SMTP_USER: str
-    EMAIL_SMTP_PASSWORD: str
-    EMAIL_FROM: str
+    EMAIL_SMTP_USER: Optional[str] = None
+    EMAIL_SMTP_PASSWORD: Optional[str] = None
+    EMAIL_FROM: Optional[str] = None
     EMAIL_USE_TLS: bool = True
     
     # Google Calendar
@@ -63,8 +63,8 @@ class Settings(BaseSettings):
     GOOGLE_CALENDAR_ID: Optional[str] = None
     GOOGLE_CALENDAR_DELEGATED_USER: Optional[str] = None
     
-    # Kaspi платежи
-    KASPI_PAYMENT_URL: str
+    # Kaspi платежи - опционально, можно указать дефолтное значение
+    KASPI_PAYMENT_URL: str = "https://pay.kaspi.kz/pay/default"
     
     # Уведомления
     REMINDER_24H_ENABLED: bool = True
