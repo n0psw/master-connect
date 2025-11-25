@@ -111,4 +111,37 @@ CHECKLIST.md
 GIT_SETUP.md
 PRODUCTION_CHECKLIST.md
 landing-*.md
+ЗАПУСК.md
+AUTH_SETUP_COMPLETE.md
+
+# Test scripts
+test_*.py
+*_test.py
+
+# Dev/utility scripts
+create_demo_users.py
+create_dev_seed.py
+debug_*.py
+diagnose_*.py
+fix_*.py
+apply_*.py
+recalculate_*.py
+start_*.ps1
+start_*.bat
+START_*.bat
+run_server.py
+start_minimal.py
+
+# Admin creation scripts (optional, can be removed)
+create_admin.py
+create_admin_api.py
+
+# Temporary files
+*.txt
+!requirements.txt
+!requirements-minimal.txt
+!pyproject.toml
+
+# Test HTML files
+test_api.html
 
