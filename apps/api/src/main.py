@@ -175,7 +175,12 @@ def create_app() -> FastAPI:
     if settings.APP_ENV == "production":
         app.add_middleware(
             TrustedHostMiddleware,
-            allowed_hosts=["*.masterconnect.kz", "masterconnect.kz"]
+            allowed_hosts=[
+                "*.mastereducation.kz",
+                "mastereducation.kz",
+                "localhost",
+                "127.0.0.1",
+            ]
         )
     
     # В debug режиме включаем подробные ошибки
