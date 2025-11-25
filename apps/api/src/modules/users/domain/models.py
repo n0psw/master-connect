@@ -113,10 +113,8 @@ class User(Base):
 class Student(Base):
     """Профиль студента."""
     
-    # Исключаем id из Base, так как используем user_id как primary key
-    __mapper_args__ = {
-        "exclude_properties": ["id"]
-    }
+    # Переопределяем id как None, чтобы исключить его из таблицы
+    id = None
     
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"),
