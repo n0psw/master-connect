@@ -6,18 +6,13 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Union
 
 import jwt
-import bcrypt as bcrypt_lib
-from passlib.context import CryptContext
-from passlib.hash import bcrypt
+import bcrypt
 
 from .config import settings
 from .exceptions import AuthenticationError
 from .logging import get_logger
 
 logger = get_logger(__name__)
-
-# Контекст для хеширования паролей
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Алгоритм JWT
 ALGORITHM = settings.JWT_ALGORITHM
@@ -98,36 +93,46 @@ def verify_token(token: str, token_type: str = "access") -> Dict[str, Any]:
 
 
 def get_password_hash(password: str) -> str:
-    """Хеширование пароля."""
+    """Хеширование пароля используя прямой bcrypt."""
     # Bcrypt ограничивает длину пароля 72 байтами
     # Обрезаем пароль до 72 байт, если он длиннее
     password_bytes = password.encode('utf-8')
     if len(password_bytes) > 72:
         password_bytes = password_bytes[:72]
-        password = password_bytes.decode('utf-8', errors='ignore')
-    return pwd_context.hash(password)
+        logger.debug("Password truncated for hashing", original_length=len(password.encode('utf-8')), truncated_length=72)
+    
+    # Генерируем соль и хешируем пароль
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Проверка пароля. Использует прямой bcrypt для совместимости."""
+    """Проверка пароля используя прямой bcrypt."""
     try:
         # Bcrypt ограничивает длину пароля 72 байтами
         # Обрезаем пароль до 72 байт, если он длиннее (как при хешировании)
         password_bytes = plain_password.encode('utf-8')
         if len(password_bytes) > 72:
             password_bytes = password_bytes[:72]
+            logger.debug("Password truncated for verification", original_length=len(plain_password.encode('utf-8')), truncated_length=72)
         
-        # Используем прямой bcrypt для проверки (работает с любыми bcrypt хешами)
-        hashed_bytes = hashed_password.encode('utf-8')
-        return bcrypt_lib.checkpw(password_bytes, hashed_bytes)
-    except Exception as e:
-        logger.warning("Password verification error", error=str(e))
-        # Если прямой bcrypt не сработал, пробуем passlib как fallback
-        try:
-            plain_password_truncated = password_bytes.decode('utf-8', errors='ignore')
-            return pwd_context.verify(plain_password_truncated, hashed_password)
-        except Exception:
+        # Проверяем формат хеша
+        if not hashed_password or len(hashed_password) < 10:
+            logger.warning("Invalid hash format", hash_length=len(hashed_password) if hashed_password else 0)
             return False
+        
+        # Используем прямой bcrypt для проверки
+        hashed_bytes = hashed_password.encode('utf-8')
+        result = bcrypt.checkpw(password_bytes, hashed_bytes)
+        
+        if not result:
+            logger.debug("Password verification failed", hash_prefix=hashed_password[:20] if hashed_password else None)
+        
+        return result
+    except Exception as e:
+        logger.error("Password verification error", error=str(e), error_type=type(e).__name__)
+        return False
 
 
 def generate_password_reset_token(email: str) -> str:
