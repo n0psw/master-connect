@@ -106,13 +106,12 @@ def upgrade() -> None:
     sa.Column('goals', sa.Text(), nullable=True),
     sa.Column('country', sa.String(length=100), nullable=True),
     sa.Column('city', sa.String(length=100), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('user_id', 'id')
+    sa.PrimaryKeyConstraint('user_id')
     )
-    op.create_index(op.f('ix_students_id'), 'students', ['id'], unique=False)
+    op.create_index(op.f('ix_students_user_id'), 'students', ['user_id'], unique=False)
     op.create_table('availability_rules',
     sa.Column('mentor_id', sa.UUID(), nullable=False),
     sa.Column('weekday', sa.Integer(), nullable=False),
@@ -321,7 +320,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_availability_rules_mentor_id'), table_name='availability_rules')
     op.drop_index(op.f('ix_availability_rules_id'), table_name='availability_rules')
     op.drop_table('availability_rules')
-    op.drop_index(op.f('ix_students_id'), table_name='students')
+    op.drop_index(op.f('ix_students_user_id'), table_name='students')
     op.drop_table('students')
     op.drop_index(op.f('ix_refresh_tokens_user_id'), table_name='refresh_tokens')
     op.drop_index(op.f('ix_refresh_tokens_token'), table_name='refresh_tokens')
