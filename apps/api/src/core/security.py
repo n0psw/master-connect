@@ -116,19 +116,24 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         password_bytes = plain_password.encode('utf-8')
         if len(password_bytes) > 72:
             password_bytes = password_bytes[:72]
-            plain_password = password_bytes.decode('utf-8', errors='ignore')
+        plain_password_truncated = password_bytes.decode('utf-8', errors='ignore')
         
         # Сначала пробуем прямой bcrypt (для старых хешей созданных через create_demo_users.py)
         try:
-            if bcrypt_lib.checkpw(password_bytes, hashed_password.encode('utf-8')):
+            hashed_bytes = hashed_password.encode('utf-8')
+            if bcrypt_lib.checkpw(password_bytes, hashed_bytes):
                 return True
-        except Exception:
+        except (ValueError, Exception) as e:
+            # Если bcrypt падает, пробуем passlib
             pass
         
         # Если не получилось, пробуем через passlib (для новых хешей)
+        # Обрезаем пароль для passlib тоже
         try:
-            return pwd_context.verify(plain_password, hashed_password)
-        except Exception:
+            return pwd_context.verify(plain_password_truncated, hashed_password)
+        except (ValueError, Exception) as e:
+            # Если passlib тоже падает, возвращаем False
+            logger.warning("Password verification failed", error=str(e))
             return False
     except Exception as e:
         logger.warning("Password verification error", error=str(e))
