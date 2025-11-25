@@ -180,15 +180,6 @@ export const LoginPage = () => {
               </Link>
             </div>
           </div>
-
-          {/* Информация для демонстрации */}
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">
-              Демо аккаунты: student@test.com / mentor@test.com / admin@test.com
-              <br />
-              Пароль: password123
-            </p>
-          </div>
         </div>
       </div>
     </>
