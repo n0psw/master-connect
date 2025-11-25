@@ -12,12 +12,11 @@ from core.logging import get_logger
 logger = get_logger(__name__)
 
 # Создаем асинхронный движок базы данных
-# Используем NullPool только для SQLite (если будет использоваться в тестах)
-# Для PostgreSQL используем стандартный пул соединений
+# Используем стандартный пул соединений для PostgreSQL
+# SQLite больше не поддерживается для обеспечения совместимости с production
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DATABASE_ECHO,
-    poolclass=NullPool if "sqlite" in settings.DATABASE_URL.lower() else None,
     future=True,
 )
 
