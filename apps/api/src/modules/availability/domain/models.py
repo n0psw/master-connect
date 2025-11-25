@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, time, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Time
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Time, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
@@ -75,11 +75,15 @@ class AvailabilityRule(Base):
 class MentorSettings(Base):
     """Настройки доступности ментора."""
     
-    # Исключаем id из наследования базового класса, так как используем mentor_id как PK
+    # Исключаем id, created_at, updated_at из наследования базового класса
+    # так как используем mentor_id как PK и переопределяем timestamps
     __mapper_args__ = {
         "primary_key": ["mentor_id"],
-        "exclude_properties": ["id"]
+        "exclude_properties": ["id", "created_at", "updated_at"]
     }
+    
+    # Переопределяем id как None, чтобы SQLAlchemy не пытался его использовать
+    id: Mapped[None] = None  # type: ignore
     
     mentor_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("mentors.user_id", ondelete="CASCADE"),
@@ -94,9 +98,9 @@ class MentorSettings(Base):
     max_bookings_per_day: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
     advance_booking_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    # Timestamps (переопределяем из Base)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Связи
     mentor: Mapped["Mentor"] = relationship("Mentor", back_populates="availability_settings")
