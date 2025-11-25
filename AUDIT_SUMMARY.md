@@ -31,7 +31,14 @@
 - **Исправление**: Добавлена колонка `updated_at` в миграцию
 - **Файл**: `apps/api/alembic/versions/2025_11_25_1701-add_notifications_table.py`
 
-### 3. API клиенты (Frontend)
+### 3. API роуты
+
+#### ✅ Availability routes
+- **Проблема**: Некоторые роуты не имели явной обработки ошибок
+- **Исправление**: Добавлена обработка ошибок (try/except) для всех роутов availability с правильными статус кодами
+- **Файл**: `apps/api/src/modules/availability/api/routes.py`
+
+### 4. API клиенты (Frontend)
 
 #### ✅ Availability API
 - **Проблема**: `getMyAvailabilitySettings()` использовал неправильный путь `/availability/my/profile` вместо получения настроек из профиля
@@ -91,6 +98,8 @@
 2. `fix Mentor and Student models to exclude id column properly`
 3. `fix notification model timestamps and add updated_at to migration, fix mentor university tablename`
 4. `fix availability api getMyAvailabilitySettings to use correct endpoint`
+5. `add error handling to all availability routes`
+6. `add audit script and summary of all fixes`
 
 ## Следующие шаги
 
