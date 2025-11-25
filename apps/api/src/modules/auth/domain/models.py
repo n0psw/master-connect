@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class RefreshToken(Base):
     """Модель refresh токена."""
     
-    token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    token: Mapped[str] = mapped_column(Text, unique=True, nullable=False, index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
