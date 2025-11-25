@@ -110,6 +110,12 @@ def get_password_hash(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Проверка пароля."""
     try:
+        # Bcrypt ограничивает длину пароля 72 байтами
+        # Обрезаем пароль до 72 байт, если он длиннее (как при хешировании)
+        password_bytes = plain_password.encode('utf-8')
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+            plain_password = password_bytes.decode('utf-8', errors='ignore')
         return pwd_context.verify(plain_password, hashed_password)
     except Exception as e:
         logger.warning("Password verification error", error=str(e))
