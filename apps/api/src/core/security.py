@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Union
 
 import jwt
+import bcrypt as bcrypt_lib
 from passlib.context import CryptContext
 from passlib.hash import bcrypt
 
@@ -108,7 +109,7 @@ def get_password_hash(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Проверка пароля."""
+    """Проверка пароля. Поддерживает оба формата: passlib и прямой bcrypt."""
     try:
         # Bcrypt ограничивает длину пароля 72 байтами
         # Обрезаем пароль до 72 байт, если он длиннее (как при хешировании)
@@ -116,7 +117,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         if len(password_bytes) > 72:
             password_bytes = password_bytes[:72]
             plain_password = password_bytes.decode('utf-8', errors='ignore')
-        return pwd_context.verify(plain_password, hashed_password)
+        
+        # Сначала пробуем через passlib (для новых хешей)
+        try:
+            return pwd_context.verify(plain_password, hashed_password)
+        except (ValueError, Exception):
+            # Если не получилось, пробуем прямой bcrypt (для старых хешей)
+            try:
+                return bcrypt_lib.checkpw(password_bytes, hashed_password.encode('utf-8'))
+            except Exception:
+                return False
     except Exception as e:
         logger.warning("Password verification error", error=str(e))
         return False
