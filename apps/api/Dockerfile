@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY apps/api/src/ ./src/
 COPY apps/api/alembic.ini ./
 COPY apps/api/alembic/ ./alembic/
+COPY create_admin.py ./
 
 RUN mkdir -p uploads/avatars uploads/payment_evidences
 
