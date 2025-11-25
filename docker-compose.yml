@@ -73,7 +73,7 @@ services:
       - api
     networks:
       - masterconnect
-      - default
+      - proxy
     restart: unless-stopped
 
   celery:
