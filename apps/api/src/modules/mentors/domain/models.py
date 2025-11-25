@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, JSON, func, Integer
+from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
@@ -21,8 +21,11 @@ if TYPE_CHECKING:
 class Mentor(Base):
     """Модель ментора."""
     
-    # Переопределяем id как None, чтобы исключить его из таблицы
-    id = None
+    # Исключаем id из наследования базового класса, так как используем user_id как PK
+    __mapper_args__ = {
+        "primary_key": ["user_id"],
+        "exclude_properties": ["id"]
+    }
     
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"),
@@ -53,20 +56,6 @@ class Mentor(Base):
     
     # Медиа
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
-    
-    # Базовые поля (вручную, не наследуем от Base)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
-    
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False
-    )
     
     # Связи
     user: Mapped["User"] = relationship("User", back_populates="mentor_profile")
