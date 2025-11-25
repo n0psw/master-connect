@@ -122,6 +122,8 @@ class Mentor(Base):
 class MentorUniversity(Base):
     """Образование ментора."""
     
+    __tablename__ = "mentor_universitys"  # Используем существующее имя таблицы из миграции
+    
     # Собственный ID как primary key
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
