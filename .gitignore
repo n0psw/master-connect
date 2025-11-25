@@ -95,3 +95,20 @@ credentials/
 # Additional files
 *.bak
 
+# Cursor AI files
+.cursor/
+cursor-logs.md
+
+# Audit reports and temporary documentation
+AVATAR_*.md
+BOOKING_SYSTEM_*.md
+GOOGLE_MEET_*.md
+DATABASE_FIXED.md
+PAYMENT_SYSTEM.md
+PROJECT_STATUS.md
+TODAY_SUMMARY.md
+CHECKLIST.md
+GIT_SETUP.md
+PRODUCTION_CHECKLIST.md
+landing-*.md
+
