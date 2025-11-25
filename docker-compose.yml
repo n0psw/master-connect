@@ -66,10 +66,14 @@ services:
     container_name: masterconnect_web
     ports:
       - "${WEB_PORT:-3000}:80"
+    environment:
+      - VIRTUAL_HOST=connect.mastereducation.kz,www.connect.mastereducation.kz
+      - VIRTUAL_PORT=80
     depends_on:
       - api
     networks:
       - masterconnect
+      - default
     restart: unless-stopped
 
   celery:
