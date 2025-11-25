@@ -17,6 +17,7 @@ COPY apps/api/src/ ./src/
 COPY apps/api/alembic.ini ./
 COPY apps/api/alembic/ ./alembic/
 COPY create_admin.py ./
+COPY create_demo_users.py ./
 
 RUN mkdir -p uploads/avatars uploads/payment_evidences
 
