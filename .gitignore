@@ -99,6 +99,13 @@ credentials/
 .cursor/
 cursor-logs.md
 
+# Documentation files (instructions should be in chat, not in repo)
+*_DEPLOY.md
+DEPLOY*.md
+*_STEPS.md
+*_CHECKLIST.md
+*_SETUP.md
+
 # Audit reports and temporary documentation
 AVATAR_*.md
 BOOKING_SYSTEM_*.md
