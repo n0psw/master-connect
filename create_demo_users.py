@@ -29,8 +29,22 @@ import db.models  # noqa: F401 - импорт всех моделей для п�
 
 from modules.users.domain.models import User, Student, UserRole
 from modules.mentors.domain.models import Mentor
-from core.security import get_password_hash
 from core.config import settings
+
+# Используем прямой bcrypt вместо passlib для избежания проблем с инициализацией
+import bcrypt
+
+def hash_password(password: str) -> str:
+    """Хеширование пароля с использованием bcrypt напрямую."""
+    # Bcrypt ограничивает длину пароля 72 байтами
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+    
+    # Генерируем соль и хешируем пароль
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 
 async def create_demo_users():
@@ -65,7 +79,7 @@ async def create_demo_users():
         else:
             student_user = User(
                 email=student_email,
-                password_hash=get_password_hash(demo_password),
+                password_hash=hash_password(demo_password),
                 name=student_name,
                 role=UserRole.STUDENT,
                 is_active=True,
@@ -95,7 +109,7 @@ async def create_demo_users():
         else:
             mentor_user = User(
                 email=mentor_email,
-                password_hash=get_password_hash(demo_password),
+                password_hash=hash_password(demo_password),
                 name=mentor_name,
                 role=UserRole.MENTOR,
                 is_active=True,
@@ -136,7 +150,7 @@ async def create_demo_users():
         else:
             admin_user = User(
                 email=admin_email,
-                password_hash=get_password_hash(demo_password),
+                password_hash=hash_password(demo_password),
                 name=admin_name,
                 role=UserRole.ADMIN,
                 is_active=True,
