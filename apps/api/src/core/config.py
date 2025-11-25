@@ -12,7 +12,8 @@ class Settings(BaseSettings):
     """Настройки приложения."""
     
     model_config = ConfigDict(
-        env_file=".env",
+        env_file=os.getenv("ENV_FILE", ".env"),  # Используем ENV_FILE если установлен, иначе .env
+        env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore"
     )

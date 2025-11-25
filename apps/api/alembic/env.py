@@ -4,6 +4,7 @@ Alembic environment configuration.
 import asyncio
 import os
 import sys
+from pathlib import Path
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -14,6 +15,14 @@ from alembic import context
 
 # Добавляем src в PYTHONPATH
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+# Убеждаемся, что .env файл загружается из корня проекта
+# Alembic запускается из apps/api/alembic/, а .env в корне проекта
+alembic_dir = Path(__file__).parent.parent.parent.parent  # apps/api/alembic -> project root
+env_file = alembic_dir / ".env"
+if env_file.exists():
+    # Устанавливаем переменную окружения для pydantic-settings
+    os.environ.setdefault("ENV_FILE", str(env_file))
 
 from core.config import settings
 from db.base import Base
