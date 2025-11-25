@@ -19,11 +19,11 @@ depends_on = None
 def upgrade() -> None:
     # Проверяем, существует ли enum, и создаем только если его нет
     conn = op.get_bind()
-    result = conn.execute(sa.text(
+    enum_exists = conn.execute(sa.text(
         "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type')"
     )).scalar()
     
-    if not result:
+    if not enum_exists:
         # Создаем enum для типа уведомления только если его нет
         notification_type_enum = postgresql.ENUM(
             'booking_created',
@@ -38,9 +38,9 @@ def upgrade() -> None:
             'support_ticket_update',
             'system_announcement',
             name='notification_type',
-            create_type=True
+            create_type=False  # Устанавливаем False, так как мы управляем созданием вручную
         )
-        notification_type_enum.create(conn, checkfirst=True)
+        notification_type_enum.create(op.get_bind(), checkfirst=True)
     
     # Используем существующий enum для колонки
     notification_type_enum = postgresql.ENUM(

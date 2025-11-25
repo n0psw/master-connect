@@ -79,14 +79,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             if result.returncode == 0:
                 logger.info("Database migrations applied successfully")
                 if result.stdout:
-                    logger.debug(f"Migration output: {result.stdout}")
+                    logger.info(f"Alembic stdout: {result.stdout}")
                 migrations_success = True
             else:
                 logger.error(f"Migration failed with code {result.returncode}")
                 if result.stdout:
-                    logger.error(f"Migration stdout: {result.stdout}")
+                    logger.error(f"Alembic stdout: {result.stdout}")
                 if result.stderr:
-                    logger.error(f"Migration stderr: {result.stderr}")
+                    logger.error(f"Alembic stderr: {result.stderr}")
         except FileNotFoundError:
             logger.warning("Alembic not found, skipping migrations")
         except Exception as e:
