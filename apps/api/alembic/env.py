@@ -22,7 +22,7 @@ from db.base import Base
 from modules.users.domain.models import User, Student
 from modules.auth.domain.models import RefreshToken
 from modules.mentors.domain.models import Mentor, MentorUniversity
-from modules.availability.domain.models import AvailabilityRule, TimeOff
+from modules.availability.domain.models import AvailabilityRule, TimeOff, MentorSettings
 from modules.bookings.domain.models import Booking
 from modules.reviews.domain.models import Review
 from modules.chat.domain.models import Dialog, Message
