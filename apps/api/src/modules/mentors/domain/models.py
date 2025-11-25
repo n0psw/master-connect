@@ -27,6 +27,9 @@ class Mentor(Base):
         "exclude_properties": ["id"]
     }
     
+    # Переопределяем id как None, чтобы SQLAlchemy не пытался его использовать
+    id: Mapped[None] = None  # type: ignore
+    
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"),
         primary_key=True
