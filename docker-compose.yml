@@ -85,6 +85,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_started
     volumes:
       - ./uploads:/app/uploads
     networks:
@@ -104,6 +106,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_started
     volumes:
       - ./uploads:/app/uploads
     networks:

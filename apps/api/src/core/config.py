@@ -38,12 +38,8 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
     
-    # CORS
-    BACKEND_CORS_ORIGINS: List[str] = [
-        "http://localhost:3000", 
-        "http://localhost:5173",
-        "http://localhost:8080"
-    ]
+    # CORS (парсится в валидаторе из строки в список)
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8080"]
     
     # Файловое хранилище (S3)
     S3_ENDPOINT: Optional[str] = None
@@ -87,24 +83,26 @@ class Settings(BaseSettings):
     
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: str | List[str] | None) -> List[str]:
+    def assemble_cors_origins(cls, v: Any) -> List[str]:
         """Парсинг CORS origins."""
-        if v is None or (isinstance(v, str) and not v.strip()):
+        if v is None:
             return ["http://localhost:3000"]
+        if isinstance(v, list):
+            return v
         if isinstance(v, str):
             v = v.strip()
-            if not v:
+            if not v or v == "[]":
                 return ["http://localhost:3000"]
             if v.startswith("["):
                 try:
                     import json
-                    return json.loads(v)
-                except json.JSONDecodeError:
-                    return [i.strip() for i in v.strip("[]").split(",") if i.strip()]
-            else:
-                return [i.strip() for i in v.split(",") if i.strip()]
-        elif isinstance(v, list):
-            return v
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if item]
+                    return ["http://localhost:3000"]
+                except (json.JSONDecodeError, ValueError, TypeError):
+                    return [i.strip() for i in v.strip("[]\"").split(",") if i.strip()]
+            return [i.strip() for i in v.split(",") if i.strip()]
         return ["http://localhost:3000"]
     
     @field_validator("DATABASE_URL", mode="before")
