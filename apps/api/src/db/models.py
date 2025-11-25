@@ -11,7 +11,7 @@ from modules.auth.domain.models import RefreshToken  # noqa: F401
 from modules.mentors.domain.models import Mentor, MentorUniversity  # noqa: F401
 
 # Доступность
-from modules.availability.domain.models import AvailabilityRule, TimeOff  # noqa: F401
+from modules.availability.domain.models import AvailabilityRule, TimeOff, MentorSettings  # noqa: F401
 
 # Бронирования и сопряженные сущности
 from modules.bookings.domain.models import Booking  # noqa: F401

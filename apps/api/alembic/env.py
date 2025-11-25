@@ -30,6 +30,7 @@ from modules.support.domain.models import SupportTicket
 from modules.payments.domain.models import PaymentEvidence
 from modules.settings.domain.models import GlobalSettings
 from modules.admin.domain.models import AuditLog
+from modules.notifications.domain.models import Notification
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
