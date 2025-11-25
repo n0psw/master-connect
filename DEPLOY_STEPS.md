@@ -38,11 +38,11 @@ DATABASE_URL=postgresql+psycopg://postgres:ВАШ_ПАРОЛЬ@postgres:5432/mas
 POSTGRES_PASSWORD=ВАШ_НАДЕЖНЫЙ_ПАРОЛЬ
 
 # CORS - ваш домен
-BACKEND_CORS_ORIGINS=https://masterconnect.mastereducation.kz
+BACKEND_CORS_ORIGINS=https://connect.mastereducation.kz
 
 # API URL для фронтенда (важно!)
-VITE_API_URL=https://api.masterconnect.mastereducation.kz/api/v1
-VITE_WS_URL=wss://api.masterconnect.mastereducation.kz/ws
+VITE_API_URL=https://api.connect.mastereducation.kz/api/v1
+VITE_WS_URL=wss://api.connect.mastereducation.kz/ws
 
 # Остальные настройки (S3, Email, Google Calendar)
 # Заполните по необходимости
@@ -53,8 +53,8 @@ VITE_WS_URL=wss://api.masterconnect.mastereducation.kz/ws
 #### Вариант A: Отдельные домены для MasterConnect
 
 Если у вас есть отдельные домены:
-- `masterconnect.mastereducation.kz` - для фронтенда
-- `api.masterconnect.mastereducation.kz` - для API
+- `connect.mastereducation.kz` - для фронтенда
+- `api.connect.mastereducation.kz` - для API
 
 ```bash
 # Скопировать конфиг
@@ -137,7 +137,7 @@ docker-compose logs -f api
 
 ```bash
 # Для отдельных доменов
-sudo certbot --nginx -d masterconnect.mastereducation.kz -d api.masterconnect.mastereducation.kz
+sudo certbot --nginx -d connect.mastereducation.kz -d api.connect.mastereducation.kz
 
 # Или для API Gateway (если используете вариант B)
 # SSL уже должен быть настроен для api.mastereducation.kz

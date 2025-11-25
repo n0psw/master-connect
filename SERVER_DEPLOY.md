@@ -47,8 +47,8 @@ BACKEND_CORS_ORIGINS=https://connect.mastereducation.kz,https://www.connect.mast
 
 ```bash
 # В корневом .env файле добавьте:
-VITE_API_URL=https://api.masterconnect.mastereducation.kz/api/v1
-VITE_WS_URL=wss://api.masterconnect.mastereducation.kz/ws
+VITE_API_URL=https://api.connect.mastereducation.kz/api/v1
+VITE_WS_URL=wss://api.connect.mastereducation.kz/ws
 ```
 
 **Важно:** 
@@ -149,13 +149,13 @@ VITE_API_URL=https://api.mastereducation.kz/masterconnect/api/v1
 ## Шаг 8: Настройка SSL (Let's Encrypt)
 
 ```bash
-sudo certbot --nginx -d masterconnect.mastereducation.kz -d api.masterconnect.mastereducation.kz
+sudo certbot --nginx -d connect.mastereducation.kz -d api.connect.mastereducation.kz
 ```
 
 ## Шаг 9: Проверка работы
 
-- Откройте в браузере: `https://masterconnect.mastereducation.kz`
-- Проверьте API: `https://api.masterconnect.mastereducation.kz/health`
+- Откройте в браузере: `https://connect.mastereducation.kz`
+- Проверьте API: `https://api.connect.mastereducation.kz/health`
 - Проверьте логи: `docker-compose logs -f`
 
 ## Обновление приложения
