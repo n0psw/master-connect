@@ -109,35 +109,25 @@ def get_password_hash(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Проверка пароля. Поддерживает оба формата: прямой bcrypt и passlib."""
+    """Проверка пароля. Использует прямой bcrypt для совместимости."""
     try:
         # Bcrypt ограничивает длину пароля 72 байтами
         # Обрезаем пароль до 72 байт, если он длиннее (как при хешировании)
         password_bytes = plain_password.encode('utf-8')
         if len(password_bytes) > 72:
             password_bytes = password_bytes[:72]
-        plain_password_truncated = password_bytes.decode('utf-8', errors='ignore')
         
-        # Сначала пробуем прямой bcrypt (для старых хешей созданных через create_demo_users.py)
-        try:
-            hashed_bytes = hashed_password.encode('utf-8')
-            if bcrypt_lib.checkpw(password_bytes, hashed_bytes):
-                return True
-        except (ValueError, Exception) as e:
-            # Если bcrypt падает, пробуем passlib
-            pass
-        
-        # Если не получилось, пробуем через passlib (для новых хешей)
-        # Обрезаем пароль для passlib тоже
-        try:
-            return pwd_context.verify(plain_password_truncated, hashed_password)
-        except (ValueError, Exception) as e:
-            # Если passlib тоже падает, возвращаем False
-            logger.warning("Password verification failed", error=str(e))
-            return False
+        # Используем прямой bcrypt для проверки (работает с любыми bcrypt хешами)
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt_lib.checkpw(password_bytes, hashed_bytes)
     except Exception as e:
         logger.warning("Password verification error", error=str(e))
-        return False
+        # Если прямой bcrypt не сработал, пробуем passlib как fallback
+        try:
+            plain_password_truncated = password_bytes.decode('utf-8', errors='ignore')
+            return pwd_context.verify(plain_password_truncated, hashed_password)
+        except Exception:
+            return False
 
 
 def generate_password_reset_token(email: str) -> str:
