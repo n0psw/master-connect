@@ -72,11 +72,12 @@ async def init_db() -> None:
         from modules.chat.domain.models import Dialog, Message
         
         # Модели с зависимостями
-        from modules.availability.domain.models import AvailabilityRule, TimeOff
+        from modules.availability.domain.models import AvailabilityRule, TimeOff, MentorSettings
         from modules.bookings.domain.models import Booking
         from modules.reviews.domain.models import Review
         from modules.payments.domain.models import PaymentEvidence
         from modules.settings.domain.models import GlobalSettings
+        from modules.notifications.domain.models import Notification
     except ImportError as e:
         logger.warning(f"Failed to import some models: {e}")
         # Импортируем только основные модели
