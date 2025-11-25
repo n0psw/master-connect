@@ -42,7 +42,7 @@ dependencies = [
     "google-api-python-client>=2.100.0",
     "google-auth>=2.23.0",
     "boto3>=1.28.0",
-    "anymail[sendgrid]>=10.0",
+    # "anymail[sendgrid]>=10.0",  # не используется
     "python-socketio>=5.8.0",
     "slowapi>=0.1.9",
     "structlog>=23.1.0",
@@ -127,7 +127,7 @@ module = [
     "redis.*",
     "google.*",
     "boto3.*",
-    "anymail.*",
+    # "anymail.*",  # не используется
 ]
 ignore_missing_imports = true
 

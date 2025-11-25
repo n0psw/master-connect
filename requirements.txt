@@ -35,8 +35,8 @@ celery>=5.3.0
 # File Upload & Storage
 boto3>=1.28.0
 
-# Email
-anymail[sendgrid]>=10.0
+# Email (не используется, закомментировано)
+# anymail[sendgrid]>=10.0
 
 # Google Services (опционально)
 google-api-python-client>=2.100.0
