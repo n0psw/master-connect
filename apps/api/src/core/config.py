@@ -82,7 +82,6 @@ class Settings(BaseSettings):
     # Настройки брони (время на оплату после создания бронирования)
     BOOKING_HOLD_DURATION_MINUTES: int = 30
     
-    @computed_field
     @property
     def cors_origins_list(self) -> List[str]:
         """Парсинг CORS origins из строки в список."""
