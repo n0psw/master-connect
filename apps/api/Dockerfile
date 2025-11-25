@@ -11,7 +11,9 @@ RUN apt-get update && apt-get install -y \
 COPY pyproject.toml ./
 COPY requirements.txt ./
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip list | grep -i passlib && echo "ERROR: passlib should not be installed!" && exit 1 || echo "OK: passlib not installed" && \
+    pip show bcrypt | grep Version
 
 COPY apps/api/src/ ./src/
 COPY apps/api/alembic.ini ./
