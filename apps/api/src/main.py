@@ -67,10 +67,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             import subprocess
             import os
+            from pathlib import Path
+            
             logger.info("Running database migrations...")
+            # Определяем путь к директории с alembic.ini
+            # В Docker: /app, локально: apps/api
+            if os.path.exists("/app/alembic.ini"):  # Docker
+                alembic_dir = "/app"
+            else:  # Локально
+                # Находим корень проекта (где есть apps/api)
+                current_file = Path(__file__).resolve()
+                project_root = current_file.parent.parent.parent.parent  # apps/api/src/main.py -> project root
+                alembic_dir = project_root / "apps" / "api"
+            
             result = subprocess.run(
                 ["alembic", "upgrade", "head"],
-                cwd="/app",
+                cwd=str(alembic_dir),
                 capture_output=True,
                 text=True,
                 timeout=60,
