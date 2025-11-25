@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 COPY apps/api/src/ ./src/
 COPY apps/api/alembic.ini ./
 COPY apps/api/alembic/ ./alembic/
+RUN ls -la /app/alembic/versions/ | head -10
 COPY create_admin.py ./
 COPY create_demo_users.py ./
 
