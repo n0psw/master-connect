@@ -121,8 +121,20 @@ async def get_my_availability_profile(
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> MentorAvailabilityProfile:
     """Получение профиля доступности текущего ментора."""
-    profile = await availability_service.get_mentor_availability_profile(current_user.id)
-    return profile
+    try:
+        profile = await availability_service.get_mentor_availability_profile(current_user.id)
+        return profile
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error getting availability profile", mentor_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.put(
@@ -136,7 +148,24 @@ async def update_my_settings(
     current_user: User = Depends(get_current_mentor),
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> MentorSettingsResponse:
-    return await availability_service.update_mentor_settings(current_user.id, settings)
+    try:
+        return await availability_service.update_mentor_settings(current_user.id, settings)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except BusinessLogicError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error updating mentor settings", mentor_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.put(
@@ -150,7 +179,24 @@ async def update_my_schedule(
     current_user: User = Depends(get_current_mentor),
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> WeeklyScheduleResponse:
-    return await availability_service.update_weekly_schedule(current_user.id, schedule)
+    try:
+        return await availability_service.update_weekly_schedule(current_user.id, schedule)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except BusinessLogicError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error updating weekly schedule", mentor_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.post(
@@ -173,13 +219,30 @@ async def create_my_availability_rule(
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> AvailabilityRuleResponse:
     """Создание правила доступности."""
-    rule = await availability_service.create_availability_rule(
-        mentor_id=current_user.id,
-        rule_data=rule_data
-    )
-    
-    logger.info("Availability rule created by mentor", mentor_id=current_user.id, rule_id=rule.id)
-    return rule
+    try:
+        rule = await availability_service.create_availability_rule(
+            mentor_id=current_user.id,
+            rule_data=rule_data
+        )
+        
+        logger.info("Availability rule created by mentor", mentor_id=current_user.id, rule_id=rule.id)
+        return rule
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except BusinessLogicError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error creating availability rule", mentor_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.put(
@@ -203,13 +266,30 @@ async def update_my_availability_rule(
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> AvailabilityRuleResponse:
     """Обновление правила доступности."""
-    rule = await availability_service.update_availability_rule(
-        rule_id=rule_id,
-        rule_data=rule_data
-    )
-    
-    logger.info("Availability rule updated by mentor", mentor_id=current_user.id, rule_id=rule_id)
-    return rule
+    try:
+        rule = await availability_service.update_availability_rule(
+            rule_id=rule_id,
+            rule_data=rule_data
+        )
+        
+        logger.info("Availability rule updated by mentor", mentor_id=current_user.id, rule_id=rule_id)
+        return rule
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except BusinessLogicError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error updating availability rule", mentor_id=current_user.id, rule_id=rule_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.delete(
@@ -230,8 +310,20 @@ async def delete_my_availability_rule(
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> None:
     """Удаление правила доступности."""
-    await availability_service.delete_availability_rule(rule_id)
-    logger.info("Availability rule deleted by mentor", mentor_id=current_user.id, rule_id=rule_id)
+    try:
+        await availability_service.delete_availability_rule(rule_id)
+        logger.info("Availability rule deleted by mentor", mentor_id=current_user.id, rule_id=rule_id)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error deleting availability rule", mentor_id=current_user.id, rule_id=rule_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.put(
@@ -253,19 +345,36 @@ async def bulk_update_my_availability(
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> List[AvailabilityRuleResponse]:
     """Массовое обновление правил доступности."""
-    rules = await availability_service.bulk_update_availability(
-        mentor_id=current_user.id,
-        bulk_data=bulk_data
-    )
-    
-    logger.info(
-        "Bulk availability update by mentor", 
-        mentor_id=current_user.id, 
-        rules_count=len(rules),
-        replace_existing=bulk_data.replace_existing
-    )
-    
-    return rules
+    try:
+        rules = await availability_service.bulk_update_availability(
+            mentor_id=current_user.id,
+            bulk_data=bulk_data
+        )
+        
+        logger.info(
+            "Bulk availability update by mentor", 
+            mentor_id=current_user.id, 
+            rules_count=len(rules),
+            replace_existing=bulk_data.replace_existing
+        )
+        
+        return rules
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except BusinessLogicError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error in bulk availability update", mentor_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 # === Time Off endpoints ===
@@ -290,13 +399,30 @@ async def create_my_time_off(
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> TimeOffResponse:
     """Создание периода отсутствия."""
-    time_off = await availability_service.create_time_off(
-        mentor_id=current_user.id,
-        time_off_data=time_off_data
-    )
-    
-    logger.info("Time off created by mentor", mentor_id=current_user.id, time_off_id=time_off.id)
-    return time_off
+    try:
+        time_off = await availability_service.create_time_off(
+            mentor_id=current_user.id,
+            time_off_data=time_off_data
+        )
+        
+        logger.info("Time off created by mentor", mentor_id=current_user.id, time_off_id=time_off.id)
+        return time_off
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except BusinessLogicError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error creating time off", mentor_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.put(
@@ -319,13 +445,30 @@ async def update_my_time_off(
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> TimeOffResponse:
     """Обновление периода отсутствия."""
-    time_off = await availability_service.update_time_off(
-        time_off_id=time_off_id,
-        time_off_data=time_off_data
-    )
-    
-    logger.info("Time off updated by mentor", mentor_id=current_user.id, time_off_id=time_off_id)
-    return time_off
+    try:
+        time_off = await availability_service.update_time_off(
+            time_off_id=time_off_id,
+            time_off_data=time_off_data
+        )
+        
+        logger.info("Time off updated by mentor", mentor_id=current_user.id, time_off_id=time_off_id)
+        return time_off
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except BusinessLogicError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error updating time off", mentor_id=current_user.id, time_off_id=time_off_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
 
 
 @router.delete(
@@ -346,7 +489,20 @@ async def delete_my_time_off(
     availability_service: AvailabilityService = Depends(get_availability_service)
 ) -> None:
     """Удаление периода отсутствия."""
-    await availability_service.delete_time_off(time_off_id)
+    try:
+        await availability_service.delete_time_off(time_off_id)
+        logger.info("Time off deleted by mentor", mentor_id=current_user.id, time_off_id=time_off_id)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Error deleting time off", mentor_id=current_user.id, time_off_id=time_off_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
     logger.info("Time off deleted by mentor", mentor_id=current_user.id, time_off_id=time_off_id)
 
 
