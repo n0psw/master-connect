@@ -4,7 +4,7 @@
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
-from pydantic import field_validator, ConfigDict, computed_field
+from pydantic import field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 
 
