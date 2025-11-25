@@ -4,7 +4,7 @@
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
-from pydantic import field_validator, ConfigDict
+from pydantic import field_validator, ConfigDict, computed_field
 from pydantic_settings import BaseSettings
 
 
@@ -39,7 +39,8 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     
     # CORS (парсится в валидаторе из строки в список)
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8080"]
+    # Используем строку как тип, чтобы pydantic не пытался парсить как JSON
+    BACKEND_CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://localhost:8080"
     
     # Файловое хранилище (S3) - опционально, если не используется
     S3_ENDPOINT: Optional[str] = None
@@ -81,10 +82,11 @@ class Settings(BaseSettings):
     # Настройки брони (время на оплату после создания бронирования)
     BOOKING_HOLD_DURATION_MINUTES: int = 30
     
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    @classmethod
-    def assemble_cors_origins(cls, v: Any) -> List[str]:
-        """Парсинг CORS origins."""
+    @computed_field
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Парсинг CORS origins из строки в список."""
+        v = self.BACKEND_CORS_ORIGINS
         if v is None:
             return ["http://localhost:3000"]
         if isinstance(v, list):
