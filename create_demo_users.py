@@ -24,6 +24,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 
+# Импортируем все модели, чтобы SQLAlchemy мог правильно настроить relationships
+from modules.auth.domain.models import RefreshToken  # noqa: F401
 from modules.users.domain.models import User, Student, UserRole
 from modules.mentors.domain.models import Mentor
 from core.security import get_password_hash
