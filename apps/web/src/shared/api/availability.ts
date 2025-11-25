@@ -102,8 +102,8 @@ export const availabilityApi = {
 
   // Получение настроек доступности
   async getMyAvailabilitySettings(): Promise<AvailabilitySettings> {
-    const response = await api.get<AvailabilitySettings>('/availability/my/profile')
-    return response.data
+    const response = await api.get<MentorAvailability>('/availability/my/profile')
+    return response.data.settings
   },
 
   // Обновление настроек доступности
