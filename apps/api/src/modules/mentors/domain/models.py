@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, JSON, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, JSON, func, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
@@ -21,11 +21,8 @@ if TYPE_CHECKING:
 class Mentor(Base):
     """Модель ментора."""
     
-    # Исключаем id из наследования базового класса, так как используем user_id как PK
-    __mapper_args__ = {
-        "primary_key": ["user_id"],
-        "exclude_properties": ["id"]
-    }
+    # Переопределяем id как None, чтобы исключить его из таблицы
+    id = None
     
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"),

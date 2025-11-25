@@ -4,8 +4,9 @@ Domain модели для пользователей.
 import uuid
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
+from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy import Boolean, ForeignKey, String, Text, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
@@ -113,11 +114,8 @@ class User(Base):
 class Student(Base):
     """Профиль студента."""
     
-    # Исключаем id из наследования базового класса, так как используем user_id как PK
-    __mapper_args__ = {
-        "primary_key": ["user_id"],
-        "exclude_properties": ["id"]
-    }
+    # Переопределяем id как None, чтобы исключить его из таблицы
+    id = None
     
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"),
@@ -133,6 +131,20 @@ class Student(Base):
     
     # Медиа
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
+    
+    # Базовые поля (вручную, не наследуем от Base)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+    
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False
+    )
     
     # Связи
     user: Mapped[User] = relationship("User", back_populates="student_profile")
