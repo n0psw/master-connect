@@ -110,15 +110,17 @@ class Settings(BaseSettings):
     @classmethod
     def validate_database_url(cls, v: str) -> str:
         """Валидация URL базы данных."""
+        # Требуем PostgreSQL для обеспечения совместимости с production
+        # SQLite больше не поддерживается, чтобы избежать проблем "на локалке работает, на сервере нет"
         allowed = (
             "postgresql://",
             "postgresql+psycopg://",
             "postgresql+psycopg2://",
-            "sqlite+aiosqlite://",
         )
         if not v.startswith(allowed):
             raise ValueError(
-                "DATABASE_URL должен быть PostgreSQL или SQLite (sqlite+aiosqlite://)"
+                "DATABASE_URL должен быть PostgreSQL (postgresql+psycopg://...). "
+                "SQLite больше не поддерживается для обеспечения совместимости с production."
             )
         return v
 
