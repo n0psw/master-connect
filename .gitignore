@@ -99,6 +99,15 @@ credentials/
 .cursor/
 cursor-logs.md
 
+# Audit reports and test scripts (not for repository)
+AUDIT_SUMMARY.md
+FINAL_AUDIT_REPORT.md
+audit_check.py
+test_api_endpoints.sh
+*.audit.md
+*_AUDIT*.md
+*_REPORT*.md
+
 # Documentation files (instructions should be in chat, not in repo)
 *_DEPLOY.md
 DEPLOY*.md
