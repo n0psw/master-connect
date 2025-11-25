@@ -35,7 +35,7 @@ POSTGRES_PASSWORD=YOUR_STRONG_PASSWORD
 REDIS_URL=redis://redis:6379/0
 
 # CORS - укажите ваш домен
-BACKEND_CORS_ORIGINS=https://masterconnect.mastereducation.kz,https://www.masterconnect.mastereducation.kz
+BACKEND_CORS_ORIGINS=https://connect.mastereducation.kz,https://www.connect.mastereducation.kz
 
 # Остальные настройки (S3, Email, Google Calendar и т.д.)
 # Заполните согласно .env.production.example
