@@ -20,6 +20,9 @@ export const MentorDashboardPage = () => {
     ['booking-stats', 'mentor'],
     () => bookingsApi.getMyBookingStats(),
     {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке статистики: ' + (error?.detail || error?.message))
       }
@@ -49,6 +52,10 @@ export const MentorDashboardPage = () => {
       sort: 'created_desc'
     }),
     {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке бронирований: ' + (error?.detail || error?.message))
       }
@@ -66,6 +73,10 @@ export const MentorDashboardPage = () => {
       sort: 'scheduled_asc'
     }),
     {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке предстоящих консультаций: ' + (error?.detail || error?.message))
       }
@@ -80,7 +91,13 @@ export const MentorDashboardPage = () => {
       page_size: 5,
       status: ['AWAITING_VERIFICATION'],
       sort: 'created_desc'
-    })
+    }),
+    {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
+      cacheTime: 60 * 1000
+    }
   )
 
   const formatDate = (dateString: string) => {

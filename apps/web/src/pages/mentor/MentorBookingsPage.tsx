@@ -41,6 +41,10 @@ export const MentorBookingsPage = () => {
     () => bookingsApi.getMyBookings(searchFilters),
     {
       keepPreviousData: true,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке бронирований: ' + (error?.detail || error?.message))
       }
@@ -50,7 +54,12 @@ export const MentorBookingsPage = () => {
   // Запрос статистики
   const { data: stats } = useQuery(
     ['booking-stats', 'mentor'],
-    () => bookingsApi.getMyBookingStats()
+    () => bookingsApi.getMyBookingStats(),
+    {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000
+    }
   )
 
   const queryClient = useQueryClient()

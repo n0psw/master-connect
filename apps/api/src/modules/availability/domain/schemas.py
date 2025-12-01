@@ -5,7 +5,7 @@ from datetime import datetime, time
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, validator, field_serializer, model_validator, field_validator, computed_field, model_serializer
+from pydantic import BaseModel, Field, validator, field_serializer, model_validator, field_validator, computed_field, model_serializer, ConfigDict
 
 
 class BreakPeriod(BaseModel):
@@ -89,11 +89,10 @@ class AvailabilityRuleResponse(AvailabilityRuleBase):
     """Схема ответа с правилом доступности."""
     id: UUID = Field(..., description="ID правила")
     mentor_id: UUID = Field(..., description="ID ментора")
-    created_at: str = Field(..., description="Дата создания")
-    updated_at: str = Field(..., description="Дата последнего обновления")
+    created_at: datetime = Field(..., description="Дата создания")
+    updated_at: datetime = Field(..., description="Дата последнего обновления")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TimeOffBase(BaseModel):
@@ -127,11 +126,10 @@ class TimeOffResponse(TimeOffBase):
     """Схема ответа с периодом отсутствия."""
     id: UUID = Field(..., description="ID периода отсутствия")
     mentor_id: UUID = Field(..., description="ID ментора")
-    created_at: str = Field(..., description="Дата создания")
-    updated_at: str = Field(..., description="Дата последнего обновления")
+    created_at: datetime = Field(..., description="Дата создания")
+    updated_at: datetime = Field(..., description="Дата последнего обновления")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TimeSlot(BaseModel):
@@ -200,19 +198,10 @@ class MentorSettingsUpdate(BaseModel):
 class MentorSettingsResponse(MentorSettingsBase):
     """Схема ответа с настройками ментора."""
     mentor_id: UUID = Field(..., description="ID ментора")
-    created_at: str = Field(..., description="Дата создания")
-    updated_at: str = Field(..., description="Дата последнего обновления")
+    created_at: datetime = Field(..., description="Дата создания")
+    updated_at: datetime = Field(..., description="Дата последнего обновления")
     
-    @field_validator('created_at', 'updated_at', mode='before')
-    @classmethod
-    def convert_datetime_to_string(cls, v):
-        """Преобразование datetime в строку ISO формата."""
-        if isinstance(v, datetime):
-            return v.isoformat()
-        return v
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SimpleTimeSlot(BaseModel):

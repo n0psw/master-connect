@@ -17,6 +17,7 @@ import { mentorsApi } from '@/shared/api/mentors'
 import { bookingsApi } from '@/shared/api/bookings'
 import { availabilityApi } from '@/shared/api/availability'
 import { useAuthStore } from '@/shared/store/auth'
+import { getImageUrl } from '@/shared/utils/imageUtils'
 import type { MentorDetail } from '@/shared/types/mentors'
 import type { BookingCreate } from '@/shared/types/bookings'
 
@@ -293,12 +294,12 @@ export const BookConsultationPage = () => {
               <Card className="sticky top-8">
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                       {mentor.mentor.avatar_url ? (
                         <img 
-                          src={mentor.mentor.avatar_url} 
+                          src={getImageUrl(mentor.mentor.avatar_url)} 
                           alt={mentor.user.name || 'Ментор'} 
-                          className="w-full h-full rounded-full object-cover"
+                          className="w-16 h-16 rounded-full object-cover"
                         />
                       ) : (
                         <span className="text-2xl font-semibold text-primary">

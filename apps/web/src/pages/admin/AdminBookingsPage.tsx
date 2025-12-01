@@ -300,12 +300,17 @@ export const AdminBookingsPage = () => {
     () => adminApi.getBookings(searchFilters),
     {
       keepPreviousData: true,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке бронирований: ' + (error?.detail || error?.message))
       }
     }
   )
 
+  const bookings = bookingsData?.items || []
   const totalPages = bookingsData
     ? Math.max(
         1,
@@ -454,7 +459,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-yellow-600">
-                {bookingsData?.items?.filter(b => b.status === 'AWAITING_VERIFICATION').length || 0}
+                {bookings.filter((b: AdminBooking) => b.status === 'AWAITING_VERIFICATION').length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Ожидают</div>
             </CardContent>
@@ -462,7 +467,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-green-600">
-                {bookingsData?.items?.filter(b => b.status === 'CONFIRMED').length || 0}
+                {bookings.filter((b: AdminBooking) => b.status === 'CONFIRMED').length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Подтверждены</div>
             </CardContent>
@@ -470,7 +475,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-blue-600">
-                {bookingsData?.items?.filter(b => b.status === 'COMPLETED').length || 0}
+                {bookings.filter((b: AdminBooking) => b.status === 'COMPLETED').length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Завершены</div>
             </CardContent>
@@ -478,7 +483,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-red-600">
-                {bookingsData?.items?.filter(b => b.status === 'CANCELLED').length || 0}
+                {bookings.filter((b: AdminBooking) => b.status === 'CANCELLED').length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Отменены</div>
             </CardContent>
@@ -486,7 +491,7 @@ export const AdminBookingsPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-green-600">
-                {((bookingsData?.items?.reduce((sum, b) => sum + (b.status === 'COMPLETED' ? (Number(getPrice(b)) || 0) : 0), 0) ?? 0)).toFixed(0)}
+                {bookings.reduce((sum: number, b: AdminBooking) => sum + (b.status === 'COMPLETED' ? (Number(getPrice(b)) || 0) : 0), 0).toFixed(0)}
               </div>
               <div className="text-sm text-muted-foreground">Доход</div>
             </CardContent>
@@ -553,8 +558,8 @@ export const AdminBookingsPage = () => {
                           </td>
                         </tr>
                       ))
-                    ) : bookingsData?.items?.length ? (
-                      bookingsData.items.map((booking) => (
+                    ) : bookings.length ? (
+                      bookings.map((booking) => (
                         <tr key={booking.id} className="border-b hover:bg-muted/50">
                           <td className="py-4 px-4">
                             <div className="space-y-2">

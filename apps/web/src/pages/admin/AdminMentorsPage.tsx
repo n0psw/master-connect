@@ -70,7 +70,10 @@ export const AdminMentorsPage = () => {
             searchFilters.sort === 'rating_asc' ? 'rating_asc' : 'rating_desc'
     }),
     { 
-      staleTime: 30000,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       onError: (error: any) => {
         console.error('Error loading mentors:', error)
         toast.error('Ошибка при загрузке менторов: ' + (error?.detail || error?.message))

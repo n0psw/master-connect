@@ -33,6 +33,9 @@ export const PaymentEvidenceUpload = ({
       onSuccess: () => {
         toast.success('Оплата отмечена. Ожидает подтверждения администратором.')
         queryClient.invalidateQueries(['my-bookings'])
+        queryClient.invalidateQueries(['admin-bookings'])
+        queryClient.invalidateQueries(['moderation-queue'])
+        queryClient.invalidateQueries(['booking-stats'])
         onSuccess?.()
         onClose()
       },

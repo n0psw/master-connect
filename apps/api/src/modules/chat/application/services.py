@@ -1,7 +1,7 @@
 """
 Сервисы для модуля чата.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 from uuid import UUID
 
@@ -57,7 +57,10 @@ class ChatService:
             summary = await self._build_dialog_summary(dialog, booking, current_user_id=user_id)
             summaries.append(summary)
 
-        summaries.sort(key=lambda d: d.last_message_at or datetime.min, reverse=True)
+        summaries.sort(
+            key=lambda d: d.last_message_at or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True
+        )
         return DialogListResponse(dialogs=summaries)
 
     async def get_dialog_messages(

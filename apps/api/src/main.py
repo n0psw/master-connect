@@ -3,6 +3,12 @@
 """
 import asyncio
 import sys
+
+# Устанавливаем WindowsSelectorEventLoopPolicy для Windows ДО всех импортов
+# Это необходимо для работы psycopg с async PostgreSQL на Windows
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
@@ -13,9 +19,6 @@ if str(src_path) not in sys.path:
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import ValidationError
 
@@ -85,7 +88,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 cwd=str(alembic_dir),
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=120,  # Увеличиваем таймаут до 120 секунд для первого подключения
                 env=os.environ.copy()
             )
             if result.returncode == 0:

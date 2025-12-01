@@ -1715,16 +1715,20 @@ class BookingService:
         student_name = "Студент"
         student_avatar_url = None
         
+        mentor_email = None
         if mentor:
             mentor_user = getattr(mentor, 'user', None)
             if mentor_user:
                 mentor_name = mentor_user.name or mentor_user.email or "Ментор"
+                mentor_email = mentor_user.email
                 mentor_avatar_url = getattr(mentor, 'avatar_url', None)
         
+        student_email = None
         if student:
             student_user = getattr(student, 'user', None)
             if student_user:
                 student_name = student_user.name or student_user.email or "Студент"
+                student_email = student_user.email
                 student_avatar_url = getattr(student, 'avatar_url', None)
         
         # Проверяем наличие отзыва
@@ -1762,8 +1766,10 @@ class BookingService:
             created_at=created_at,
             updated_at=updated_at,
             mentor_name=mentor_name,
+            mentor_email=mentor_email,
             mentor_avatar_url=mentor_avatar_url,
             student_name=student_name,
+            student_email=student_email,
             student_avatar_url=student_avatar_url,
             has_review=has_review
         )

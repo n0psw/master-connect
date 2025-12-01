@@ -110,6 +110,10 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
   const markPaymentMutation = useMutation(bookingsApi.markPayment, {
     onSuccess: () => {
       queryClient.invalidateQueries(['booking', booking.id])
+      queryClient.invalidateQueries(['my-bookings'])
+      queryClient.invalidateQueries(['admin-bookings'])
+      queryClient.invalidateQueries(['moderation-queue'])
+      queryClient.invalidateQueries(['booking-stats'])
       toast.success('Отметка об оплате отправлена!')
     },
     onError: (error: any) => {

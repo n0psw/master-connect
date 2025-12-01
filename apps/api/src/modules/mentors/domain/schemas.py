@@ -7,7 +7,7 @@ from enum import Enum
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
 from modules.users.domain.schemas import UserResponse
 
@@ -22,13 +22,12 @@ class MentorUniversityBase(BaseModel):
     country: Optional[str] = Field(None, max_length=100, description="Страна")
     city: Optional[str] = Field(None, max_length=100, description="Город")
     
-    @validator("year_to")
-    def validate_years(cls, v, values):
+    @model_validator(mode='after')
+    def validate_years(self):
         """Валидация годов обучения."""
-        year_from = values.get("year_from")
-        if v and year_from and v < year_from:
+        if self.year_to and self.year_from and self.year_to < self.year_from:
             raise ValueError("Год окончания не может быть раньше года начала обучения")
-        return v
+        return self
 
 
 class MentorUniversityCreate(MentorUniversityBase):
@@ -45,11 +44,10 @@ class MentorUniversityResponse(MentorUniversityBase):
     """Схема ответа с образованием ментора."""
     id: UUID = Field(..., description="ID записи об образовании")
     mentor_id: UUID = Field(..., description="ID ментора")
-    created_at: str = Field(..., description="Дата создания")
-    updated_at: str = Field(..., description="Дата последнего обновления")
+    created_at: datetime = Field(..., description="Дата создания")
+    updated_at: datetime = Field(..., description="Дата последнего обновления")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MentorBase(BaseModel):
@@ -63,25 +61,24 @@ class MentorBase(BaseModel):
     subjects: List[str] = Field(default=[], description="Предметные области")
     avatar_url: Optional[str] = Field(None, max_length=500, description="URL аватара")
     
-    @validator("languages")
+    @field_validator("languages")
+    @classmethod
     def validate_languages(cls, v):
         """Валидация языков."""
         if not isinstance(v, list):
             raise ValueError("Языки должны быть списком")
         
-        # Убираем дубликаты и пустые строки
         languages = list(set(lang.strip() for lang in v if lang.strip()))
         
-        # Разрешаем пустой список для существующих менторов
         return languages
     
-    @validator("subjects")
+    @field_validator("subjects")
+    @classmethod
     def validate_subjects(cls, v):
         """Валидация предметов."""
         if not isinstance(v, list):
             raise ValueError("Предметы должны быть списком")
         
-        # Убираем дубликаты и пустые строки
         subjects = list(set(subj.strip() for subj in v if subj.strip()))
         
         return subjects
@@ -105,8 +102,7 @@ class MentorResponse(MentorBase):
     created_at: datetime = Field(..., description="Дата создания")
     updated_at: datetime = Field(..., description="Дата последнего обновления")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MentorCard(BaseModel):

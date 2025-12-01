@@ -44,7 +44,6 @@ export const MentorsPage = () => {
 
   const searchQuery = searchParams.get('search') || ''
   const currentPage = parseInt(searchParams.get('page') || '1')
-  const selectedLanguages = searchParams.get('languages')?.split(',').filter(Boolean) || []
   const selectedSubjects = searchParams.get('subjects')?.split(',').filter(Boolean) || []
   const selectedCountries = searchParams.get('countries')?.split(',').filter(Boolean) || []
   const priceMin = searchParams.get('price_min') ? parseInt(searchParams.get('price_min')!) : undefined
@@ -57,7 +56,6 @@ export const MentorsPage = () => {
     page: currentPage,
     page_size: 12,
     sort: sortBy as any,
-    languages: selectedLanguages.length > 0 ? selectedLanguages : undefined,
     subjects: selectedSubjects.length > 0 ? selectedSubjects : undefined,
     countries: selectedCountries.length > 0 ? selectedCountries : undefined,
     price_min: priceMin,
@@ -70,17 +68,16 @@ export const MentorsPage = () => {
     () => mentorsApi.getMentors(searchFilters),
     {
       keepPreviousData: true,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке менторов: ' + (error?.detail || error?.message))
       }
     }
   )
 
-  const { data: popularLanguages } = useQuery(
-    ['popular-languages'],
-    () => mentorsApi.getPopularLanguages(),
-    { staleTime: 5 * 60 * 1000 }
-  )
 
   const { data: popularSubjects } = useQuery(
     ['popular-subjects'],
@@ -125,14 +122,13 @@ export const MentorsPage = () => {
 
   const activeFilters = useMemo(() => {
     const chips: Array<{ label: string; key: string; value?: string }> = []
-    selectedLanguages.forEach((language) => chips.push({ label: language, key: 'languages', value: language }))
     selectedSubjects.forEach((subject) => chips.push({ label: subject, key: 'subjects', value: subject }))
     selectedCountries.forEach((country) => chips.push({ label: country, key: 'countries', value: country }))
     if (priceMin) chips.push({ label: `от ${priceMin.toLocaleString()} ₸`, key: 'price_min' })
     if (priceMax) chips.push({ label: `до ${priceMax.toLocaleString()} ₸`, key: 'price_max' })
     if (ratingMin) chips.push({ label: `${ratingMin}+ ⭐`, key: 'rating_min' })
     return chips
-  }, [selectedLanguages, selectedSubjects, selectedCountries, priceMin, priceMax, ratingMin])
+  }, [selectedSubjects, selectedCountries, priceMin, priceMax, ratingMin])
 
   const hasActiveFilters = activeFilters.length > 0
 
@@ -162,23 +158,6 @@ export const MentorsPage = () => {
                   <p className="text-lg text-[#475467] max-w-3xl">
                     Используйте фильтры по направлению, бюджету и языку, чтобы найти наставника, который поможет подготовить документы, эссе и пройти собеседование.
                   </p>
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl border border-[rgba(28,63,227,0.12)] bg-white px-5 py-4">
-                  <div className="text-xs uppercase tracking-[0.3em] text-primary">Менторы</div>
-                  <div className="mt-2 text-2xl font-bold text-[#101828]">500+</div>
-                  <p className="mt-1 text-xs text-[#475467]">Верифицированных специалистов</p>
-                </div>
-                <div className="rounded-2xl border border-[rgba(28,63,227,0.12)] bg-white px-5 py-4">
-                  <div className="text-xs uppercase tracking-[0.3em] text-primary">Студенты</div>
-                  <div className="mt-2 text-2xl font-bold text-[#101828]">2 000+</div>
-                  <p className="mt-1 text-xs text-[#475467]">Успешно поступили</p>
-                </div>
-                <div className="rounded-2xl border border-[rgba(28,63,227,0.12)] bg-white px-5 py-4">
-                  <div className="text-xs uppercase tracking-[0.3em] text-primary">Рейтинг</div>
-                  <div className="mt-2 text-2xl font-bold text-[#101828]">4.9/5</div>
-                  <p className="mt-1 text-xs text-[#475467]">По отзывам студентов</p>
                 </div>
               </div>
             </div>
@@ -258,9 +237,7 @@ export const MentorsPage = () => {
           <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
             <aside className="hidden lg:block">
               <FiltersPanel
-                popularLanguages={popularLanguages}
                 popularSubjects={popularSubjects}
-                selectedLanguages={selectedLanguages}
                 selectedSubjects={selectedSubjects}
                 priceMin={priceMin}
                 priceMax={priceMax}
@@ -279,7 +256,7 @@ export const MentorsPage = () => {
                       {mentorsData ? `Найдено ${mentorsData.total} наставников` : 'Загружаем каталог'}
                     </div>
                     <div className="text-xs text-[#475467]">
-                      {mentorsData ? `Страница ${currentPage} из ${mentorsData.total_pages}` : 'Подбираем лучшие совпадения'}
+                      {mentorsData && mentorsData.total_pages ? `Страница ${currentPage} из ${mentorsData.total_pages}` : mentorsData ? `Страница ${currentPage}` : 'Подбираем лучшие совпадения'}
                     </div>
                   </div>
                 </div>
@@ -357,7 +334,7 @@ export const MentorsPage = () => {
                     ))}
                   </div>
 
-                  {mentorsData.total_pages > 1 && (
+                  {mentorsData.total_pages && mentorsData.total_pages > 1 && (
                     <div className="flex justify-center">
                       <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(16,24,40,0.12)] bg-white px-2 py-2 shadow-sm">
                         <Button
@@ -369,7 +346,7 @@ export const MentorsPage = () => {
                         >
                           Назад
                         </Button>
-                        {Array.from({ length: mentorsData.total_pages }).slice(0, 5).map((_, index) => {
+                        {Array.from({ length: mentorsData.total_pages || 1 }).slice(0, 5).map((_, index) => {
                           const page = index + 1
                           return (
                             <button
@@ -389,7 +366,7 @@ export const MentorsPage = () => {
                           variant="outline"
                           size="sm"
                           className="rounded-full px-4"
-                          disabled={currentPage >= mentorsData.total_pages}
+                          disabled={!mentorsData.total_pages || currentPage >= mentorsData.total_pages}
                           onClick={() => handlePageChange(currentPage + 1)}
                         >
                           Далее
@@ -399,26 +376,6 @@ export const MentorsPage = () => {
                   )}
                 </>
               )}
-
-              <div className="rounded-[28px] border border-[rgba(16,24,40,0.1)] bg-white px-8 py-10 shadow-[0_30px_80px_-60px_rgba(16,24,40,0.45)] space-y-6">
-                <div className="flex items-start gap-4">
-                  <Info className="h-5 w-5 text-primary" />
-                  <div>
-                    <h3 className="text-xl font-semibold text-[#101828]">Не уверены, кого выбрать?</h3>
-                    <p className="mt-2 text-sm text-[#475467]">
-                      Пройдите быструю форму — подберем наставника по вашему профилю и целям.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button variant="gradient" className="h-12 px-6" asChild>
-                    <Link to="/bookings/new">Подобрать автоматически</Link>
-                  </Button>
-                  <Button variant="outline" className="h-12 px-6 border-[rgba(16,24,40,0.12)]" asChild>
-                    <Link to="/support">Задать вопрос команде</Link>
-                  </Button>
-                </div>
-              </div>
 
               <div className="rounded-[28px] border border-[rgba(16,24,40,0.1)] bg-white px-8 py-10 shadow-[0_30px_80px_-60px_rgba(16,24,40,0.45)]">
                 <div className="flex items-center gap-3 text-primary font-semibold text-sm uppercase tracking-[0.3em]">
@@ -467,9 +424,7 @@ export const MentorsPage = () => {
             </div>
             <div className="mt-6">
               <FiltersPanel
-                popularLanguages={popularLanguages}
                 popularSubjects={popularSubjects}
-                selectedLanguages={selectedLanguages}
                 selectedSubjects={selectedSubjects}
                 priceMin={priceMin}
                 priceMax={priceMax}
@@ -497,9 +452,7 @@ export const MentorsPage = () => {
 }
 
 type FiltersPanelProps = {
-  popularLanguages?: { language: string; count: number }[]
   popularSubjects?: { subject: string; count: number }[]
-  selectedLanguages: string[]
   selectedSubjects: string[]
   priceMin?: number
   priceMax?: number
@@ -509,9 +462,7 @@ type FiltersPanelProps = {
 }
 
 const FiltersPanel = ({
-  popularLanguages,
   popularSubjects,
-  selectedLanguages,
   selectedSubjects,
   priceMin,
   priceMax,
@@ -528,32 +479,6 @@ const FiltersPanel = ({
         </button>
       </div>
       <div className="space-y-5">
-        <div className="space-y-3">
-          <div className="text-sm font-semibold text-[#101828]">Языки</div>
-          <div className="flex flex-wrap gap-2">
-            {(Array.isArray(popularLanguages) ? popularLanguages : []).slice(0, 8).map((item) => {
-              const active = selectedLanguages.includes(item.language)
-              return (
-                <button
-                  key={item.language}
-                  onClick={() => {
-                    const next = active
-                      ? selectedLanguages.filter((l) => l !== item.language)
-                      : [...selectedLanguages, item.language]
-                    onChange('languages', next)
-                  }}
-                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                    active
-                      ? 'border-transparent bg-gradient-to-r from-[#1c3fe3] to-[#7a5cff] text-white'
-                      : 'border-[rgba(16,24,40,0.1)] bg-white text-[#475467] hover:border-primary/30'
-                  }`}
-                >
-                  {item.language} • {item.count}
-                </button>
-              )
-            })}
-          </div>
-        </div>
         <div className="space-y-3">
           <div className="text-sm font-semibold text-[#101828]">Направления</div>
         <div className="grid grid-cols-2 gap-2">
@@ -627,76 +552,142 @@ function MentorCardComponent({
   viewMode: 'grid' | 'list'
 }) {
   const minPrice = Math.min(...[mentor.price_30, mentor.price_45, mentor.price_60].filter(Boolean) as number[])
+  const rating = Number(mentor.rating_avg) || 0
+  const ratingCount = mentor.rating_count || 0
+  
   const cardClasses =
-    'group rounded-[28px] border border-[rgba(16,24,40,0.1)] bg-white p-6 shadow-[0_30px_80px_-60px_rgba(16,24,40,0.45)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_50px_120px_-70px_rgba(28,63,227,0.55)]'
+    'group rounded-2xl border border-[rgba(16,24,40,0.08)] bg-white transition-all duration-300 hover:border-primary/30 hover:shadow-lg'
+
+  if (viewMode === 'list') {
+    return (
+      <Link to={`${basePath}/${mentor.user_id}`} className="block">
+        <div className={`${cardClasses} p-6 md:flex md:items-center md:gap-6`}>
+          <div className="flex items-start gap-4 flex-shrink-0">
+            <div className="relative h-24 w-24 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 overflow-hidden">
+              {getImageUrl(mentor.avatar_url) ? (
+                <img 
+                  src={getImageUrl(mentor.avatar_url)!} 
+                  alt={mentor.name || 'Ментор'} 
+                  className="h-full w-full object-cover" 
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-primary">
+                  {(mentor.name || 'М')[0].toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-[#101828] group-hover:text-primary transition-colors">
+                    {mentor.name || 'Ментор'}
+                  </h3>
+                  {mentor.headline && (
+                    <p className="text-sm text-[#475467] mt-1">{mentor.headline}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 rounded-lg bg-[rgba(28,63,227,0.08)] px-3 py-1.5 flex-shrink-0">
+                  <Star className="h-4 w-4 fill-primary text-primary" />
+                  <span className="text-sm font-semibold text-primary">{rating.toFixed(1)}</span>
+                  {ratingCount > 0 && (
+                    <span className="text-xs text-[#475467]">({ratingCount})</span>
+                  )}
+                </div>
+              </div>
+              {(mentor.city || mentor.country) && (
+                <div className="flex items-center gap-1.5 text-xs text-[#667085] mb-3">
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span>{[mentor.city, mentor.country].filter(Boolean).join(', ')}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4 mt-4 md:mt-0 md:flex-shrink-0">
+            <div className="flex-1 md:flex-none min-w-0">
+              <div className="text-xs font-medium text-[#667085] mb-1">Стоимость</div>
+              <div className="text-lg font-bold text-[#101828] break-words">от {minPrice.toLocaleString()} ₸</div>
+              <div className="text-xs text-[#667085]">30/45/60 мин</div>
+            </div>
+            <div className="flex flex-col gap-2 w-full md:w-auto md:min-w-[140px]">
+              <Button variant="gradient" className="h-10 w-full md:w-auto" size="sm">
+                Записаться
+              </Button>
+              <Button variant="outline" className="h-10 w-full md:w-auto" size="sm">
+                Профиль
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Link>
+    )
+  }
 
   return (
-    <Link to={`${basePath}/${mentor.user_id}`} className={viewMode === 'list' ? 'block' : 'block h-full'}>
-      <div className={`${cardClasses} ${viewMode === 'list' ? 'md:flex md:items-center md:gap-8' : ''}`}>
-        <div className="flex items-center gap-4">
-          <div className="relative h-20 w-20 rounded-3xl bg-[rgba(28,63,227,0.08)]">
+    <Link to={`${basePath}/${mentor.user_id}`} className="block h-full">
+      <div className={`${cardClasses} p-5 h-full flex flex-col`}>
+        {/* Header with avatar and name */}
+        <div className="flex items-start gap-3 mb-4">
+          <div className="relative h-16 w-16 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 overflow-hidden flex-shrink-0">
             {getImageUrl(mentor.avatar_url) ? (
-              <img src={getImageUrl(mentor.avatar_url)!} alt={mentor.name || 'Ментор'} className="h-full w-full rounded-3xl object-cover" />
+              <img 
+                src={getImageUrl(mentor.avatar_url)!} 
+                alt={mentor.name || 'Ментор'} 
+                className="h-full w-full object-cover" 
+              />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-primary">
+              <div className="flex h-full w-full items-center justify-center text-xl font-bold text-primary">
                 {(mentor.name || 'М')[0].toUpperCase()}
               </div>
             )}
-            <span className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white text-primary shadow-[0_10px_30px_-20px_rgba(28,63,227,0.7)]">
-              <Star className="h-4 w-4" />
-            </span>
           </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <h3 className="text-xl font-semibold text-[#101828] group-hover:text-primary">{mentor.name || 'Ментор'}</h3>
-              <div className="inline-flex items-center gap-1 rounded-full bg-[rgba(28,63,227,0.08)] px-3 py-1 text-xs font-semibold text-primary">
-                <Star className="h-3 w-3" />
-                {(Number(mentor.rating_avg) || 0).toFixed(1)}
-                <span className="text-[10px] text-[#475467]">({mentor.rating_count})</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <h3 className="text-base font-bold text-[#101828] group-hover:text-primary transition-colors">
+                {mentor.name || 'Ментор'}
+              </h3>
+              <div className="flex items-center gap-1 rounded-md bg-[rgba(28,63,227,0.08)] px-2 py-0.5 flex-shrink-0">
+                <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                <span className="text-xs font-semibold text-primary">{rating.toFixed(1)}</span>
               </div>
             </div>
-            {mentor.headline && <div className="text-sm text-[#475467]">{mentor.headline}</div>}
+            {mentor.headline && (
+              <p className="text-xs text-[#667085] mb-1.5">{mentor.headline}</p>
+            )}
             {(mentor.city || mentor.country) && (
-              <div className="flex items-center gap-2 text-xs text-[#475467]">
+              <div className="flex items-center gap-1 text-xs text-[#667085]">
                 <MapPin className="h-3 w-3" />
-                {[mentor.city, mentor.country].filter(Boolean).join(', ')}
+                <span>{[mentor.city, mentor.country].filter(Boolean).join(', ')}</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className={`mt-6 flex flex-col gap-4 ${viewMode === 'list' ? 'md:flex-1 md:mt-0' : ''}`}>
-          {mentor.languages.length > 0 && (
-            <div className="flex flex-wrap gap-2 text-xs text-[#475467]">
-              {mentor.languages.slice(0, 6).map((lang) => (
-                <span key={lang} className="rounded-full bg-[rgba(28,63,227,0.08)] px-3 py-1 text-primary">
-                  {lang}
-                </span>
-              ))}
-              {mentor.languages.length > 6 && (
-                <span className="rounded-full bg-[rgba(16,24,40,0.05)] px-3 py-1">+{mentor.languages.length - 6}</span>
-              )}
+
+        {/* Info cards */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="rounded-lg border border-[rgba(28,63,227,0.12)] bg-[rgba(28,63,227,0.03)] p-2.5">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Clock className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-medium text-[#101828]">Доступность</span>
             </div>
-          )}
-          <div className="grid grid-cols-2 gap-4 text-sm text-[#475467]">
-            <div className="rounded-2xl border border-[rgba(28,63,227,0.12)] bg-[rgba(28,63,227,0.05)] px-4 py-3">
-              <div className="font-semibold text-[#101828]">Гибкость</div>
-              <div className="mt-2 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
-                {mentor.available_slots?.length ? 'Свободны слоты' : 'По запросу'}
-              </div>
+            <div className="text-xs text-[#667085]">
+              {mentor.available_slots?.length ? 'Есть слоты' : 'По запросу'}
             </div>
-            <div className="rounded-2xl border border-[rgba(28,63,227,0.12)] bg-[rgba(255,180,87,0.08)] px-4 py-3 text-primary">
-              <div className="font-semibold text-[#101828]">Стоимость</div>
-              <div className="mt-2 text-lg font-bold text-[#101828]">от {minPrice.toLocaleString()} ₸</div>
-              <div className="text-[11px] text-[#475467]">30/45/60 минут</div>
-            </div>
+          </div>
+          <div className="rounded-lg border border-[rgba(255,180,87,0.3)] bg-[rgba(255,180,87,0.05)] p-2.5 min-w-0">
+            <div className="text-xs font-medium text-[#101828] mb-1">Стоимость</div>
+            <div className="text-sm font-bold text-[#101828] break-words">от {minPrice.toLocaleString()} ₸</div>
+            <div className="text-[10px] text-[#667085] mt-0.5">30/45/60 мин</div>
           </div>
         </div>
 
-        <div className={`mt-6 flex flex-col gap-3 ${viewMode === 'list' ? 'md:mt-0 md:w-48' : ''}`}>
-          <Button variant="gradient" className="h-11">Записаться</Button>
-          <Button variant="outline" className="h-11 border-[rgba(16,24,40,0.12)]">
+        {/* Actions */}
+        <div className="flex flex-col gap-2 mt-auto">
+          <Button variant="gradient" className="h-9 w-full" size="sm">
+            Записаться
+          </Button>
+          <Button variant="outline" className="h-9 w-full" size="sm">
             Смотреть профиль
           </Button>
         </div>

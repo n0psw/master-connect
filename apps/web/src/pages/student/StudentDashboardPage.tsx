@@ -23,6 +23,9 @@ export const StudentDashboardPage = () => {
     ['booking-stats', 'student'],
     () => bookingsApi.getMyBookingStats(),
     {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке статистики: ' + (error?.detail || error?.message))
       }
@@ -38,8 +41,10 @@ export const StudentDashboardPage = () => {
       sort: 'created_desc'
     }),
     {
+      refetchOnMount: true,
       refetchOnWindowFocus: true,
       staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       refetchInterval: 60 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке бронирований: ' + (error?.detail || error?.message))
@@ -58,8 +63,10 @@ export const StudentDashboardPage = () => {
       sort: 'scheduled_asc'
     }),
     {
+      refetchOnMount: true,
       refetchOnWindowFocus: true,
       staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       refetchInterval: 60 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке предстоящих консультаций: ' + (error?.detail || error?.message))

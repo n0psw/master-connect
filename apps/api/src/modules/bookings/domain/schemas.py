@@ -113,10 +113,12 @@ class BookingResponse(BaseModel):
     
     # Информация о менторе (краткая)
     mentor_name: str = Field(..., description="Имя ментора")
+    mentor_email: Optional[str] = Field(None, description="Email ментора")
     mentor_avatar_url: Optional[str] = Field(None, description="Аватар ментора")
     
     # Информация о студенте (краткая)
     student_name: str = Field(..., description="Имя студента")
+    student_email: Optional[str] = Field(None, description="Email студента")
     student_avatar_url: Optional[str] = Field(None, description="Аватар студента")
     
     # Информация об отзыве

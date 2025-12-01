@@ -55,22 +55,50 @@ class AvailabilityService:
             raise NotFoundError("User", str(mentor_id))
         
         # Получаем или создаем MentorSettings
-        settings_query = select(MentorSettings).where(MentorSettings.mentor_id == mentor_id)
+        settings_query = select(
+            MentorSettings.mentor_id,
+            MentorSettings.timezone,
+            MentorSettings.buffer_time_minutes,
+            MentorSettings.max_bookings_per_day,
+            MentorSettings.advance_booking_days,
+            MentorSettings.created_at,
+            MentorSettings.updated_at
+        ).where(MentorSettings.mentor_id == mentor_id)
         settings_result = await self.db.execute(settings_query)
-        settings = settings_result.scalar_one_or_none()
+        settings_row = settings_result.first()
         
-        if not settings:
+        if not settings_row:
             # Создаем дефолтные настройки
-            settings = MentorSettings(
+            new_settings = MentorSettings(
                 mentor_id=mentor_id,
                 timezone=user.timezone or "UTC",
                 buffer_time_minutes=15,
                 max_bookings_per_day=8,
                 advance_booking_days=30
             )
-            self.db.add(settings)
+            self.db.add(new_settings)
             await self.db.commit()
-            await self.db.refresh(settings)
+            await self.db.refresh(new_settings)
+            
+            settings_dict = {
+                "mentor_id": new_settings.mentor_id,
+                "timezone": new_settings.timezone,
+                "buffer_time_minutes": new_settings.buffer_time_minutes,
+                "max_bookings_per_day": new_settings.max_bookings_per_day,
+                "advance_booking_days": new_settings.advance_booking_days,
+                "created_at": new_settings.created_at,
+                "updated_at": new_settings.updated_at,
+            }
+        else:
+            settings_dict = {
+                "mentor_id": settings_row.mentor_id,
+                "timezone": settings_row.timezone,
+                "buffer_time_minutes": settings_row.buffer_time_minutes,
+                "max_bookings_per_day": settings_row.max_bookings_per_day,
+                "advance_booking_days": settings_row.advance_booking_days,
+                "created_at": settings_row.created_at,
+                "updated_at": settings_row.updated_at,
+            }
         
         # Получаем правила доступности
         rules_query = select(AvailabilityRule).where(
@@ -97,9 +125,9 @@ class AvailabilityService:
         
         return MentorAvailabilityProfile(
             mentor_id=mentor_id,
-            settings=MentorSettingsResponse.from_orm(settings),
+            settings=MentorSettingsResponse.model_validate(settings_dict),
             weekly_schedule=weekly_schedule,
-            time_offs=[TimeOffResponse.from_orm(time_off) for time_off in time_offs]
+            time_offs=[TimeOffResponse.model_validate(time_off, from_attributes=True) for time_off in time_offs]
         )
 
     async def update_mentor_settings(self, mentor_id: UUID, settings_update: MentorSettingsUpdate) -> MentorSettingsResponse:
@@ -131,8 +159,30 @@ class AvailabilityService:
                 settings.advance_booking_days = settings_update.advance_booking_days
 
         await self.db.commit()
-        await self.db.refresh(settings)
-        return MentorSettingsResponse.from_orm(settings)
+        
+        settings_query = select(
+            MentorSettings.mentor_id,
+            MentorSettings.timezone,
+            MentorSettings.buffer_time_minutes,
+            MentorSettings.max_bookings_per_day,
+            MentorSettings.advance_booking_days,
+            MentorSettings.created_at,
+            MentorSettings.updated_at
+        ).where(MentorSettings.mentor_id == mentor_id)
+        settings_result = await self.db.execute(settings_query)
+        settings_row = settings_result.first()
+        
+        settings_dict = {
+            "mentor_id": settings_row.mentor_id,
+            "timezone": settings_row.timezone,
+            "buffer_time_minutes": settings_row.buffer_time_minutes,
+            "max_bookings_per_day": settings_row.max_bookings_per_day,
+            "advance_booking_days": settings_row.advance_booking_days,
+            "created_at": settings_row.created_at,
+            "updated_at": settings_row.updated_at,
+        }
+        
+        return MentorSettingsResponse.model_validate(settings_dict)
 
     async def update_weekly_schedule(self, mentor_id: UUID, schedule_data: dict) -> WeeklyScheduleResponse:
         """Полная замена недельного расписания по простому payload из UI.
@@ -261,7 +311,7 @@ class AvailabilityService:
             time_range=f"{rule_data.time_start}-{rule_data.time_end}"
         )
         
-        return AvailabilityRuleResponse.from_orm(rule)
+        return AvailabilityRuleResponse.model_validate(rule, from_attributes=True)
     
     async def update_availability_rule(
         self,
@@ -300,7 +350,7 @@ class AvailabilityService:
         
         logger.info("Availability rule updated", rule_id=rule_id, mentor_id=rule.mentor_id)
         
-        return AvailabilityRuleResponse.from_orm(rule)
+        return AvailabilityRuleResponse.model_validate(rule, from_attributes=True)
     
     async def delete_availability_rule(self, rule_id: UUID) -> bool:
         """Удаление правила доступности."""
@@ -359,7 +409,7 @@ class AvailabilityService:
             replace_existing=bulk_data.replace_existing
         )
         
-        return [AvailabilityRuleResponse.from_orm(rule) for rule in created_rules]
+        return [AvailabilityRuleResponse.model_validate(rule) for rule in created_rules]
     
     async def create_time_off(
         self,
@@ -389,7 +439,7 @@ class AvailabilityService:
             reason=time_off_data.reason
         )
         
-        return TimeOffResponse.from_orm(time_off)
+        return TimeOffResponse.model_validate(time_off, from_attributes=True)
     
     async def update_time_off(
         self,
@@ -413,7 +463,7 @@ class AvailabilityService:
         
         logger.info("Time off updated", time_off_id=time_off_id, mentor_id=time_off.mentor_id)
         
-        return TimeOffResponse.from_orm(time_off)
+        return TimeOffResponse.model_validate(time_off, from_attributes=True)
     
     async def delete_time_off(self, time_off_id: UUID) -> bool:
         """Удаление периода отсутствия."""

@@ -422,6 +422,10 @@ export const AdminUsersPage = () => {
     () => usersApi.list(searchFilters as any),
     {
       keepPreviousData: true,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке пользователей: ' + (error?.detail || error?.message))
       }

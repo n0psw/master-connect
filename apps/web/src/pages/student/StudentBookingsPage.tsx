@@ -53,9 +53,10 @@ export const StudentBookingsPage = () => {
     () => bookingsApi.getMyBookings(searchFilters),
     {
       keepPreviousData: true,
+      refetchOnMount: true,
       refetchOnWindowFocus: true,
       staleTime: 30 * 1000,
-      refetchInterval: 60 * 1000,
+      cacheTime: 60 * 1000,
       onError: (error: any) => {
         toast.error('Ошибка при загрузке бронирований: ' + (error?.detail || error?.message))
       }

@@ -112,6 +112,10 @@ export const AdminDashboardPage = () => {
     ['admin-dashboard'],
     () => adminApi.getDashboard(),
     {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 30 * 1000,
+      cacheTime: 60 * 1000,
       refetchInterval: 5 * 60 * 1000,
       onError: (error: any) => {
         console.error('Ошибка при загрузке статистики:', error)

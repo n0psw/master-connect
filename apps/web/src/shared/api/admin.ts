@@ -83,17 +83,40 @@ export const adminApi = {
 
   // ===== Бронирования (админ) =====
   async getBookings(params: AdminBookingSearchParams) {
-    // Бэкенд: GET /bookings/admin/all
-    const response = await api.get<AdminBookingsResponse>('/bookings/admin/all', {
+    // Бэкенд: GET /bookings/admin/all возвращает BookingList с полем "bookings"
+    // Преобразуем в AdminBookingsResponse с полем "items"
+    const response = await api.get<any>('/bookings/admin/all', {
       params: {
         page: params.page,
         page_size: params.page_size,
         status: params.status?.length ? params.status : undefined,
         mentor_id: params.mentor_id,
         student_id: params.student_id,
+        date_from: params.date_from,
+        date_to: params.date_to,
+        search: params.search,
+        sort: params.sort || 'created_desc',
       }
     })
-    return response.data
+    
+    const data = response.data
+    
+    const bookings = (data.bookings || data.items || []).map((booking: any) => ({
+      ...booking,
+      price_usd: Number(booking.price_amount || booking.price_usd || 0),
+      student_email: booking.student_email || booking.student?.user?.email || '',
+      mentor_email: booking.mentor_email || booking.mentor?.user?.email || '',
+      student_name: booking.student_name || booking.student?.user?.name || 'Студент',
+      mentor_name: booking.mentor_name || booking.mentor?.user?.name || 'Ментор',
+    }))
+    
+    return {
+      items: bookings,
+      total: data.total || 0,
+      page: data.page || 1,
+      pages: data.total_pages || Math.ceil((data.total || 0) / (data.page_size || 20)),
+      page_size: data.page_size || 20,
+    } as AdminBookingsResponse
   },
 
   async performBookingAction(action: AdminBookingAction) {

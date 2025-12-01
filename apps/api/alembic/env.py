@@ -7,6 +7,11 @@ import sys
 from pathlib import Path
 from logging.config import fileConfig
 
+# Устанавливаем WindowsSelectorEventLoopPolicy для Windows ДО всех импортов
+# Это необходимо для работы psycopg с async PostgreSQL на Windows
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
