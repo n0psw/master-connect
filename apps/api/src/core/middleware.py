@@ -35,9 +35,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware для логирования запросов."""
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        if request.url.path == "/health":
+            return await call_next(request)
+        
         start_time = time.time()
         
-        # Логируем входящий запрос
         logger.info(
             "Request started",
             method=request.method,
@@ -47,13 +49,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             client_ip=self._get_client_ip(request),
         )
         
-        # Обрабатываем запрос
         response = await call_next(request)
         
-        # Вычисляем время обработки
         duration = time.time() - start_time
         
-        # Логируем ответ
         logger.info(
             "Request completed",
             method=request.method,
