@@ -49,6 +49,12 @@ services:
       - ./uploads:/app/uploads
     networks:
       - masterconnect
+      - proxy
+    environment:
+      - VIRTUAL_HOST=apiconnect.mastereducation.kz
+      - VIRTUAL_PORT=8000
+      - LETSENCRYPT_HOST=apiconnect.mastereducation.kz
+      - LETSENCRYPT_EMAIL=admin@mastereducation.kz
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
