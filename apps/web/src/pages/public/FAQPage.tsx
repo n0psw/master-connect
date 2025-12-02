@@ -220,18 +220,6 @@ export const FAQPage = () => {
               </Button>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardContent className="p-6 text-center">
-              <h4 className="font-semibold mb-2">Хотите помогать студентам?</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Станьте ментором и делитесь своим опытом
-              </p>
-              <Button variant="outline" asChild size="sm">
-                <Link to="/auth/register">Стать ментором</Link>
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </>

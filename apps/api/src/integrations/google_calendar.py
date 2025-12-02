@@ -271,7 +271,6 @@ class GoogleCalendarService:
                 ).execute()
                 logger.info("Event created with conference data")
                 
-                # Извлекаем Google Meet ссылку из созданного события
                 conference_data = created_event.get('conferenceData', {})
                 entry_points = conference_data.get('entryPoints', [])
                 for entry in entry_points:
@@ -288,26 +287,33 @@ class GoogleCalendarService:
                 error_str = str(e)
                 if 'Invalid conference type' in error_str or 'conference' in error_str.lower():
                     logger.warning("Failed to create event with conference, trying without conferenceData")
-                    # Убираем conferenceData и создаём событие без него
                     event_without_conference = {k: v for k, v in event.items() if k != 'conferenceData'}
                     created_event = self.service.events().insert(
                         calendarId=calendar_id,
                         body=event_without_conference,
                         sendUpdates='none'
                     ).execute()
-                    logger.warning("Event created without conference - Google Meet link unavailable via API")
+                    
+                    hangout_link = created_event.get('hangoutLink')
+                    if hangout_link:
+                        meeting_url = hangout_link
+                        logger.info(f"Using hangoutLink from event as meeting URL: {meeting_url}")
+                    else:
+                        logger.warning("Event created without conference, hangoutLink not available")
                 else:
                     raise
             
-            # Извлечение данных
             event_id = created_event.get('id')
             html_link = created_event.get('htmlLink')
             
-            # Если Meet ссылка не была создана, генерируем уникальную ссылку
             if not meeting_url:
-                meet_code = _generate_meet_code(booking_id, starts_at)
-                meeting_url = f"https://meet.google.com/{meet_code}"
-                logger.info(f"Generated Google Meet link: {meeting_url} (Google Calendar API didn't create one)")
+                if html_link:
+                    meeting_url = html_link
+                    logger.warning("Using calendar HTML link as meeting URL (no direct Meet link available)")
+                else:
+                    meet_code = _generate_meet_code(booking_id, starts_at)
+                    meeting_url = f"https://meet.google.com/{meet_code}"
+                    logger.info(f"Generated Google Meet link: {meeting_url} (Google Calendar API didn't create one)")
             
             logger.info(
                 "Google Calendar event created",
