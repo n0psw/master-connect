@@ -67,9 +67,9 @@ services:
     ports:
       - "${WEB_PORT:-3000}:80"
     environment:
-      - VIRTUAL_HOST=connect.mastereducation.kz,www.connect.mastereducation.kz
+      - VIRTUAL_HOST=connect.mastereducation.kz
       - VIRTUAL_PORT=80
-      - LETSENCRYPT_HOST=connect.mastereducation.kz,www.connect.mastereducation.kz
+      - LETSENCRYPT_HOST=connect.mastereducation.kz
       - LETSENCRYPT_EMAIL=admin@mastereducation.kz
     depends_on:
       - api
