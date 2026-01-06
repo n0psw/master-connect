@@ -18,19 +18,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: masterconnect_redis
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    networks:
-      - masterconnect
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   api:
     build:
       context: .
@@ -42,8 +29,6 @@ services:
       - "${API_PORT:-8000}:8000"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     volumes:
       - ./uploads:/app/uploads
@@ -82,48 +67,6 @@ services:
     networks:
       - masterconnect
       - proxy
-    restart: unless-stopped
-
-  celery:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    container_name: masterconnect_celery
-    command: celery -A src.jobs.worker worker --loglevel=info
-    env_file:
-      - .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      api:
-        condition: service_started
-    volumes:
-      - ./uploads:/app/uploads
-    networks:
-      - masterconnect
-    restart: unless-stopped
-
-  celery-beat:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    container_name: masterconnect_celery_beat
-    command: celery -A src.jobs.worker beat --loglevel=info
-    env_file:
-      - .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      api:
-        condition: service_started
-    volumes:
-      - ./uploads:/app/uploads
-    networks:
-      - masterconnect
     restart: unless-stopped
 
 volumes:

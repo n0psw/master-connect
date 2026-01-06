@@ -26,11 +26,7 @@ structlog>=23.1.0
 # HTTP Client
 httpx>=0.25.0
 
-# Redis (для кеширования)
-redis>=5.0.0
-
-# Background Tasks (опционально)
-celery>=5.3.0
+# Redis и Celery удалены - не используются (кеширование через in-memory dict, задачи через asyncio)
 
 # File Upload & Storage
 boto3>=1.28.0
