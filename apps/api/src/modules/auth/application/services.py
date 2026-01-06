@@ -1,7 +1,7 @@
 """
 Сервисы для модуля аутентификации.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -169,7 +169,7 @@ class AuthService:
             raise AuthenticationError("Неверный refresh токен")
         
         # Проверяем, не истек ли токен
-        if db_token.expires_at < datetime.utcnow():
+        if db_token.expires_at < datetime.now(timezone.utc):
             logger.warning("Refresh token expired", user_id=user_id)
             raise AuthenticationError("Refresh токен истек")
         
@@ -269,7 +269,7 @@ class AuthService:
         device_info: Optional[str] = None
     ) -> RefreshToken:
         """Сохранение refresh токена в базе данных."""
-        expires_at = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRES_DAYS)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRES_DAYS)
         
         db_token = RefreshToken(
             token=token,
@@ -339,7 +339,7 @@ class AuthService:
         
         # Обновляем пароль
         user.password_hash = get_password_hash(new_password)
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
         
         # Отзываем все существующие refresh токены для безопасности
         await self.revoke_all_user_tokens(user.id)
@@ -377,7 +377,7 @@ class AuthService:
         
         # Обновляем пароль
         user.password_hash = get_password_hash(new_password)
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
         
         # Отзываем все refresh токены кроме текущего (опционально)
         # Для дополнительной безопасности можно отозвать все
@@ -395,7 +395,7 @@ class AuthService:
         
         # Помечаем истекшие токены как отозванные
         stmt = select(RefreshToken).where(
-            RefreshToken.expires_at < datetime.utcnow(),
+            RefreshToken.expires_at < datetime.now(timezone.utc),
             RefreshToken.is_revoked == False
         )
         result = await self.db.execute(stmt)

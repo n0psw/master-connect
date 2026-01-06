@@ -15,17 +15,23 @@ from db.base import Base
 
 class NotificationType(str, Enum):
     """Типы уведомлений."""
-    BOOKING_CREATED = "booking_created"  # Создано бронирование
-    BOOKING_CONFIRMED = "booking_confirmed"  # Бронирование подтверждено
-    BOOKING_CANCELLED = "booking_cancelled"  # Бронирование отменено
-    BOOKING_RESCHEDULED = "booking_rescheduled"  # Бронирование перенесено
-    BOOKING_REMINDER = "booking_reminder"  # Напоминание о консультации
-    PAYMENT_VERIFIED = "payment_verified"  # Оплата подтверждена
-    PAYMENT_REQUIRED = "payment_required"  # Требуется оплата
-    REVIEW_RECEIVED = "review_received"  # Получен отзыв
-    MESSAGE_RECEIVED = "message_received"  # Новое сообщение в чате
-    SUPPORT_TICKET_UPDATE = "support_ticket_update"  # Обновление тикета поддержки
-    SYSTEM_ANNOUNCEMENT = "system_announcement"  # Системное объявление
+    BOOKING_CREATED = "BOOKING_CREATED"  # Создано бронирование
+    BOOKING_CONFIRMED = "BOOKING_CONFIRMED"  # Бронирование подтверждено
+    BOOKING_CANCELLED = "BOOKING_CANCELLED"  # Бронирование отменено
+    BOOKING_RESCHEDULED = "BOOKING_RESCHEDULED"  # Бронирование перенесено
+    BOOKING_REMINDER = "BOOKING_REMINDER"  # Напоминание о консультации
+    BOOKING_COMPLETED = "BOOKING_COMPLETED"  # Консультация завершена
+    BOOKING_NO_SHOW = "BOOKING_NO_SHOW"  # Неявка
+    PAYMENT_VERIFIED = "PAYMENT_VERIFIED"  # Оплата подтверждена
+    PAYMENT_REQUIRED = "PAYMENT_REQUIRED"  # Требуется оплата
+    REVIEW_RECEIVED = "REVIEW_RECEIVED"  # Получен отзыв
+    REVIEW_CREATED = "REVIEW_CREATED"  # Отзыв создан (для получателя)
+    MESSAGE_RECEIVED = "MESSAGE_RECEIVED"  # Новое сообщение в чате
+    SUPPORT_TICKET_UPDATE = "SUPPORT_TICKET_UPDATE"  # Обновление тикета поддержки
+    SYSTEM_ANNOUNCEMENT = "SYSTEM_ANNOUNCEMENT"  # Системное объявление
+    ADMIN_MODERATION = "ADMIN_MODERATION"  # Новая задача модерации
+    ADMIN_PAYMENT_QUEUE = "ADMIN_PAYMENT_QUEUE"  # Новая задача в платежной очереди
+    BOOKING_EXPIRED = "BOOKING_EXPIRED"  # HOLD истек
 
 
 class Notification(Base):
@@ -47,9 +53,13 @@ class Notification(Base):
     )
     
     type: Mapped[NotificationType] = mapped_column(
-        SQLEnum(NotificationType, name="notification_type"),
+        SQLEnum(
+            NotificationType,
+            name="notification_type",
+            values_callable=lambda obj: [e.name for e in obj],
+        ),
         nullable=False,
-        index=True
+        index=True,
     )
     
     title: Mapped[str] = mapped_column(

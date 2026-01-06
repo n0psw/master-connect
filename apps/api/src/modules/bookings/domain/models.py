@@ -215,3 +215,6 @@ Index(
         ])
     )
 )
+
+# Индекс для фильтрации по updated_at (используется в moderation queue)
+Index("idx_booking_updated_at", Booking.updated_at)

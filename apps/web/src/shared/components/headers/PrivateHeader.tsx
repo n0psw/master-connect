@@ -1,4 +1,4 @@
-import { Bell, Search, User, LogOut, Settings } from 'lucide-react'
+import { Search, User, LogOut, Settings } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from 'react-query'
 
@@ -7,6 +7,7 @@ import { useAuthStore } from '@/shared/store/auth'
 import { profilesApi } from '@/shared/api/profiles'
 import { mentorsApi } from '@/shared/api/mentors'
 import { getImageUrl } from '@/shared/utils/imageUtils'
+import { NotificationBell } from '@/shared/components/NotificationBell'
 
 export const PrivateHeader = () => {
   const { user, logout } = useAuthStore()
@@ -66,13 +67,7 @@ export const PrivateHeader = () => {
 
         {/* Действия */}
         <div className="flex items-center space-x-4">
-          {/* Уведомления */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-4 w-4" />
-            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
-              3
-            </span>
-          </Button>
+          <NotificationBell />
 
           {/* Профиль пользователя */}
           <div className="flex items-center space-x-2">

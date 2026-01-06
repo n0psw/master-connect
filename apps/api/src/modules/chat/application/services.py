@@ -21,6 +21,8 @@ from modules.chat.domain.schemas import (
     MessageResponse,
 )
 from modules.mentors.domain.models import Mentor
+from modules.notifications.application.services import create_notification_helper
+from modules.notifications.domain.models import NotificationType
 from modules.users.domain.models import Student, UserRole
 
 logger = get_logger(__name__)
@@ -39,6 +41,30 @@ class ChatService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _notify_new_message(
+        self,
+        booking: Booking,
+        sender_id: UUID,
+        text: str,
+    ) -> None:
+        """Отправляет уведомление адресату диалога."""
+        recipient_id = booking.mentor_id if sender_id == booking.student_id else booking.student_id
+        action_url = "/mentor/chat" if recipient_id == booking.mentor_id else "/student/chat"
+        snippet = text[:140]
+        try:
+            await create_notification_helper(
+                db=self.db,
+                user_id=recipient_id,
+                notification_type=NotificationType.MESSAGE_RECEIVED,
+                title="Новое сообщение в чате",
+                message=snippet,
+                related_entity_type="chat",
+                related_entity_id=booking.id,
+                action_url=action_url,
+            )
+        except Exception as e:
+            logger.warning("Failed to create chat notification", booking_id=booking.id, error=str(e))
 
     async def list_user_dialogs(
         self,
@@ -128,6 +154,11 @@ class ChatService:
             booking_id=str(dialog.booking_id),
             sender_id=str(user_id),
         )
+
+        try:
+            await self._notify_new_message(booking=booking, sender_id=user_id, text=text)
+        except Exception as notify_error:
+            logger.warning("Failed to send chat notification", dialog_id=dialog.id, error=str(notify_error))
 
         return self._build_message_response(message, current_user_id=user_id)
 

@@ -17,6 +17,7 @@ from modules.notifications.domain.schemas import (
     NotificationResponse,
     UnreadCount,
 )
+from modules.notifications.application.ws_manager import ws_manager
 
 logger = get_logger(__name__)
 
@@ -52,7 +53,22 @@ class NotificationService:
         
         logger.info("Notification created", notification_id=notification.id)
         
-        return NotificationResponse.from_orm(notification)
+        response = NotificationResponse.from_orm(notification)
+
+        try:
+            unread = await self.get_unread_count(notification.user_id)
+            await ws_manager.send_to_user(
+                user_id=notification.user_id,
+                message={
+                    "type": "notification",
+                    "payload": response.model_dump(mode="json"),
+                    "unread_count": unread,
+                },
+            )
+        except Exception as e:
+            logger.warning("Failed to push notification via WS", notification_id=notification.id, error=str(e))
+
+        return response
     
     async def get_user_notifications(
         self,

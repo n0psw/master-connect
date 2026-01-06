@@ -10,6 +10,7 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -48,6 +49,7 @@ from modules.payments.api.routes import router as payments_router
 from modules.chat.api.routes import router as chat_router
 from modules.reviews.api.routes import router as reviews_router
 from modules.notifications.api.routes import router as notifications_router
+from modules.notifications.application.reminders import process_booking_reminders
 from modules.support.api.routes import router as support_router
 from modules.health.api.routes import router as health_router
 
@@ -120,7 +122,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             """Периодическая проверка истечения HOLD бронирований."""
             while True:
                 try:
-                    await asyncio.sleep(60)  # Проверяем каждую минуту
+                    await asyncio.sleep(300)  # Проверяем каждые 5 минут
                     db_session = None
                     try:
                         async for session in get_session():
@@ -146,11 +148,54 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                     break
                 except Exception as e:
                     logger.error(f"Error in expire_hold_bookings_task: {e}", exc_info=True)
-                    await asyncio.sleep(60)  # Ждем перед следующей попыткой
+                    await asyncio.sleep(300)  # Ждем перед следующей попыткой
         
         # Запускаем задачу в фоне
         expire_task = asyncio.create_task(expire_hold_bookings_task())
         logger.info("Background task for expiring HOLD bookings started")
+
+        async def reminders_task():
+            while True:
+                try:
+                    await asyncio.sleep(300)  # Проверяем каждые 5 минут
+                    if not (settings.REMINDER_24H_ENABLED or settings.REMINDER_1H_ENABLED):
+                        continue
+                    db_session = None
+                    try:
+                        async for session in get_session():
+                            db_session = session
+                            try:
+                                targets = []
+                                if settings.REMINDER_24H_ENABLED:
+                                    targets.append((24 * 60, "за 24 часа"))
+                                if settings.REMINDER_1H_ENABLED:
+                                    targets.append((60, "за 1 час"))
+                                if not targets:
+                                    break
+                                now = datetime.now(timezone.utc)
+                                created = await process_booking_reminders(db_session, now, targets)
+                                if created:
+                                    logger.info("Booking reminders created", count=created)
+                            except Exception as e:
+                                logger.error("Error processing booking reminders", error=str(e), exc_info=True)
+                            break
+                    except Exception as e:
+                        logger.error("Error getting database session for reminders", error=str(e), exc_info=True)
+                    finally:
+                        if db_session:
+                            try:
+                                await db_session.close()
+                            except Exception:
+                                pass
+                except asyncio.CancelledError:
+                    logger.info("Reminders task cancelled")
+                    break
+                except Exception as e:
+                    logger.error("Error in reminders_task", error=str(e), exc_info=True)
+                    await asyncio.sleep(300)  # 5 минут
+
+        reminders_task_handle = asyncio.create_task(reminders_task())
+        logger.info("Background task for booking reminders started")
         
         # Здесь можно добавить другие инициализации
         # - Redis подключение
@@ -166,6 +211,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             expire_task.cancel()
             try:
                 await expire_task
+            except asyncio.CancelledError:
+                pass
+        if 'reminders_task_handle' in locals():
+            reminders_task_handle.cancel()
+            try:
+                await reminders_task_handle
             except asyncio.CancelledError:
                 pass
         await close_db()

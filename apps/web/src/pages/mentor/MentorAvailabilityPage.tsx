@@ -20,9 +20,7 @@ import {
   X,
   CheckCircle,
 } from 'lucide-react'
-import dayjs from 'dayjs'
-import 'dayjs/locale/ru'
-
+import { dayjsTz } from '@/shared/lib/dayjs'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
@@ -43,8 +41,6 @@ import type {
   TimeSlot,
   DayOfWeek,
 } from '@/shared/types/availability'
-
-dayjs.locale('ru')
 
 // Схема валидации настроек
 const settingsSchema = z.object({
@@ -120,7 +116,7 @@ const DayScheduleEditor = ({ day, slots, onUpdate }: DayScheduleEditorProps) => 
   const handleAddSlot = () => {
     const lastSlot = slots[slots.length - 1]
     const newStart = lastSlot ? lastSlot.end_time : '09:00'
-    const newEnd = dayjs(`2000-01-01 ${newStart}`).add(1, 'hour').format('HH:mm')
+    const newEnd = dayjsTz(`2000-01-01 ${newStart}`).add(1, 'hour').format('HH:mm')
     
     onUpdate([...slots, { start_time: newStart, end_time: newEnd }])
   }
@@ -230,7 +226,7 @@ export const MentorAvailabilityPage = () => {
   } = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      timezone: 'Asia/Almaty',
+      timezone: 'Etc/GMT-5',
       buffer_time_minutes: DEFAULT_BUFFER_TIME,
       max_bookings_per_day: DEFAULT_MAX_BOOKINGS,
       advance_booking_days: DEFAULT_ADVANCE_DAYS,

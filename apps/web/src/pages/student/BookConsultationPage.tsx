@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useForm, Controller } from 'react-hook-form'
@@ -17,6 +17,7 @@ import { mentorsApi } from '@/shared/api/mentors'
 import { bookingsApi } from '@/shared/api/bookings'
 import { availabilityApi } from '@/shared/api/availability'
 import { useAuthStore } from '@/shared/store/auth'
+import { getClientTimezone } from '@/shared/lib/dayjs'
 import { getImageUrl } from '@/shared/utils/imageUtils'
 import type { MentorDetail } from '@/shared/types/mentors'
 import type { BookingCreate } from '@/shared/types/bookings'
@@ -72,25 +73,40 @@ export const BookConsultationPage = () => {
   const selectedTime = watch('time')
 
   // Подгружаем реальный календарь слотов (следующие 14 дней)
-  const dateFrom = new Date()
-  dateFrom.setDate(dateFrom.getDate() + 1)
-  const dateTo = new Date(dateFrom)
-  dateTo.setDate(dateFrom.getDate() + 14)
+  const dateFrom = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    return d
+  }, [])
+
+  const dateTo = useMemo(() => {
+    const d = new Date(dateFrom)
+    d.setDate(dateFrom.getDate() + 14)
+    return d
+  }, [dateFrom])
+  const availabilityKey = useMemo(
+    () => `${dateFrom.toISOString().split('T')[0]}_${dateTo.toISOString().split('T')[0]}`,
+    [dateFrom, dateTo]
+  )
+
+  const clientTimezone = useMemo(() => getClientTimezone(user?.timezone), [user?.timezone])
 
   const { data: availabilityCalendar, isLoading: isLoadingCalendar } = useQuery(
-    ['mentor-availability-calendar', mentorId, selectedDuration],
-    () => availabilityApi.getMentorAvailableCalendar(
-      mentorId!,
-      dateFrom.toISOString().split('T')[0],
-      dateTo.toISOString().split('T')[0],
-      selectedDuration ? parseInt(selectedDuration) : undefined,
-      'UTC'
-    ),
-    { 
+    ['mentor-availability-calendar', mentorId, selectedDuration, availabilityKey],
+    () =>
+      availabilityApi.getMentorAvailableCalendar(
+        mentorId!,
+        dateFrom.toISOString().split('T')[0],
+        dateTo.toISOString().split('T')[0],
+        selectedDuration ? parseInt(selectedDuration) : undefined,
+        clientTimezone
+      ),
+    {
       enabled: !!mentorId && !!selectedDuration,
-      staleTime: 0,
-      cacheTime: 0,
-      refetchOnWindowFocus: true
+      staleTime: 2 * 60 * 1000,  // 2 минуты - данные свежие
+      cacheTime: 5 * 60 * 1000,  // 5 минут - хранить в кэше
+      refetchOnWindowFocus: true,
+      refetchInterval: false,  // Убрать автоматический polling
     }
   )
 
@@ -108,10 +124,12 @@ export const BookConsultationPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['my-bookings'])
       queryClient.invalidateQueries(['booking-stats'])
+      queryClient.invalidateQueries(['mentor-availability-calendar', mentorId, selectedDuration, availabilityKey])
       setStep('confirmation')
       toast.success('Консультация забронирована!')
     },
     onError: (error: any) => {
+      queryClient.invalidateQueries(['mentor-availability-calendar', mentorId, selectedDuration, availabilityKey])
       toast.error('Ошибка при бронировании: ' + (error?.detail || error?.message))
     }
   })
@@ -122,9 +140,8 @@ export const BookConsultationPage = () => {
       return
     }
 
-    // Создаем дату в UTC (backend ожидает timezone-aware datetime)
-    // Frontend отправляет дату и время, backend конвертирует в нужный timezone
-    const scheduledAt = new Date(`${data.date}T${data.time}:00Z`)
+    // Создаем дату в локальном времени браузера и отправляем в ISO (UTC)
+    const scheduledAtIso = new Date(`${data.date}T${data.time}:00`).toISOString()
     
     const specificQuestions = data.questions
       ? data.questions
@@ -144,7 +161,7 @@ export const BookConsultationPage = () => {
 
     const bookingData: BookingCreate = {
       mentor_id: mentorId!,
-      starts_at: scheduledAt.toISOString(),
+      starts_at: scheduledAtIso,
       duration_minutes: parseInt(data.duration),
       intake_form: {
         goals: data.goals,
@@ -163,26 +180,49 @@ export const BookConsultationPage = () => {
     const dates: { value: string; label: string }[] = []
     const slots = availabilityCalendar?.slots || []
     const availableSlots = slots.filter((s: any) => s.is_available === true)
-    const uniqueDates = Array.from(new Set(availableSlots.map((s: any) => s.date))) as string[]
-    uniqueDates.forEach((d) => {
-      const date = new Date(d)
+    
+    // Конвертируем UTC слоты в локальное время студента для отображения дат
+    const datesMap = new Map<string, Date>()
+    availableSlots.forEach((s: any) => {
+      const utcDate = new Date(s.start)
+      const localDate = new Date(utcDate.getTime())
+      const dateKey = localDate.toISOString().split('T')[0]
+      if (!datesMap.has(dateKey)) {
+        datesMap.set(dateKey, localDate)
+      }
+    })
+    
+    datesMap.forEach((localDate, dateKey) => {
       dates.push({
-        value: d,
-        label: date.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })
+        value: dateKey,
+        label: localDate.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })
       })
     })
-    return dates
+    
+    return dates.sort((a, b) => a.value.localeCompare(b.value))
   }
 
   // Доступные времена для выбранной даты (только свободные слоты)
   const getTimeOptions = (): string[] => {
     if (!selectedDate) return []
     const slots = availabilityCalendar?.slots || []
-    const times = slots
-      .filter((s: any) => s.date === selectedDate && s.is_available === true)
-      .map((s: any) => s.time as string)
     
-    return Array.from(new Set(times))
+    // Фильтруем слоты по дате в локальном времени студента и конвертируем время
+    const times = slots
+      .filter((s: any) => {
+        if (!s.is_available) return false
+        const utcDate = new Date(s.start)
+        const localDateKey = utcDate.toISOString().split('T')[0]
+        return localDateKey === selectedDate
+      })
+      .map((s: any) => {
+        const utcDate = new Date(s.start)
+        const hours = utcDate.getHours().toString().padStart(2, '0')
+        const minutes = utcDate.getMinutes().toString().padStart(2, '0')
+        return `${hours}:${minutes}`
+      })
+    
+    return Array.from(new Set(times)).sort()
   }
 
   const formatPrice = (amount: number) => {

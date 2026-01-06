@@ -1,7 +1,8 @@
-import { Search, Bell, Shield, LogOut } from 'lucide-react'
+import { Search, Shield, LogOut } from 'lucide-react'
 
 import { Button } from '@/shared/ui/button'
 import { useAuthStore } from '@/shared/store/auth'
+import { NotificationBell } from '@/shared/components/NotificationBell'
 
 export const AdminHeader = () => {
   const { user, logout } = useAuthStore()
@@ -40,13 +41,7 @@ export const AdminHeader = () => {
 
         {/* Действия */}
         <div className="flex items-center space-x-4">
-          {/* Критические уведомления */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-4 w-4" />
-            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
-              5
-            </span>
-          </Button>
+          <NotificationBell />
 
           {/* Информация об админе */}
           <div className="flex items-center space-x-2">

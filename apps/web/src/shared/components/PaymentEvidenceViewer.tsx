@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { FileText, Download, Check, X, AlertCircle, Loader2 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { toast } from 'sonner'
-import dayjs from 'dayjs'
-import 'dayjs/locale/ru'
+
+import { formatDateTime, getClientTimezone } from '@/shared/lib/dayjs'
 
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -12,8 +12,6 @@ import { Input } from '@/shared/ui/input'
 import { paymentsApi } from '@/shared/api/payments'
 import { bookingsApi } from '@/shared/api/bookings'
 import type { PaymentEvidence } from '@/shared/api/payments'
-
-dayjs.locale('ru')
 
 // Функция для получения полного URL файла
 const getFileUrl = (url?: string) => {
@@ -41,6 +39,7 @@ export const PaymentEvidenceViewer = ({
   const [selectedEvidence, setSelectedEvidence] = useState<PaymentEvidence | null>(null)
   
   const queryClient = useQueryClient()
+  const tz = getClientTimezone()
 
   // Загружаем доказательства оплаты
   const { data: evidences, isLoading } = useQuery(
@@ -190,7 +189,7 @@ export const PaymentEvidenceViewer = ({
                         {evidence.creator_name || 'Студент'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {dayjs(evidence.created_at).format('DD MMMM YYYY, HH:mm')}
+                        {formatDateTime(evidence.created_at, tz, 'DD MMMM YYYY, HH:mm')}
                       </p>
                       {evidence.comment_text && (
                         <p className="text-sm text-gray-700 mt-2">

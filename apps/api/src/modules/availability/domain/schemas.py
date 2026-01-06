@@ -262,7 +262,7 @@ class SlotGenerationRequest(BaseModel):
     date_from: str = Field(..., description="Начальная дата (YYYY-MM-DD)")
     date_to: str = Field(..., description="Конечная дата (YYYY-MM-DD)")
     duration_minutes: Optional[int] = Field(None, description="Фильтр по длительности слота")
-    timezone: str = Field("UTC", description="Часовой пояс для генерации слотов")
+    timezone: str = Field("Etc/GMT-5", description="Часовой пояс для генерации слотов")
 
 
 class ConflictingSlot(BaseModel):

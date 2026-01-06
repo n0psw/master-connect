@@ -29,10 +29,7 @@ import {
   Video,
   ExternalLink,
 } from 'lucide-react'
-import dayjs from 'dayjs'
-import 'dayjs/locale/ru'
-import utc from 'dayjs/plugin/utc'
-import timezone from 'dayjs/plugin/timezone'
+import { dayjsTz, getClientTimezone } from '@/shared/lib/dayjs'
 
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -42,11 +39,7 @@ import { ReviewForm } from '@/shared/components/ReviewForm'
 import { bookingsApi } from '@/shared/api/bookings'
 import { useAuthStore } from '@/shared/store/auth'
 import { BookingStatusLabels, BookingStatusColors } from '@/shared/types/bookings'
-import type { BookingDetail } from '@/shared/types/bookings'
-
-dayjs.extend(utc)
-dayjs.extend(timezone)
-dayjs.locale('ru')
+import type { BookingDetail, Booking } from '@/shared/types/bookings'
 
 // Компонент статусного бейджа
 interface StatusBadgeProps {
@@ -177,8 +170,9 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
     }
   )
 
-  const now = dayjs()
-  const scheduledTime = dayjs((booking as any).starts_at)
+  const tz = getClientTimezone()
+  const now = dayjsTz(undefined, tz)
+  const scheduledTime = dayjsTz((booking as any).starts_at, tz)
   const isPast = scheduledTime.isBefore(now)
   const isUpcoming = scheduledTime.isAfter(now)
   const canCancel = ['HOLD', 'AWAITING_VERIFICATION', 'CONFIRMED'].includes(booking.status) && isUpcoming
@@ -313,7 +307,7 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
                 type="datetime-local"
                 value={newDateTime}
                 onChange={(e) => setNewDateTime(e.target.value)}
-                min={dayjs().add(1, 'day').format('YYYY-MM-DDTHH:mm')}
+                min={dayjsTz(undefined, tz).add(1, 'day').format('YYYY-MM-DDTHH:mm')}
               />
             </div>
             <div className="flex gap-2">
@@ -408,6 +402,7 @@ export const BookingDetailPage = () => {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [showReviewForm, setShowReviewForm] = useState(false)
+  const tz = getClientTimezone(user?.timezone)
 
   // Загрузка данных бронирования
   const { data: booking, isLoading, error } = useQuery(
@@ -454,8 +449,11 @@ export const BookingDetailPage = () => {
   const isAdmin = userRole === 'admin'
 
   const bookingData = booking.booking
-  const scheduledTime = dayjs(bookingData.starts_at)
-  const isPast = scheduledTime.isBefore(dayjs())
+  const scheduledTime = dayjsTz(bookingData.starts_at, tz)
+  const isPast = scheduledTime.isBefore(dayjsTz(undefined, tz))
+  const googleMeetLink = (bookingData as any).google_meet_link
+  const studentName = (bookingData as any).student_name ?? 'Студент'
+  const mentorName = (bookingData as any).mentor_name ?? 'Ментор'
 
   const formatPrice = (amount: number) => {
     return amount.toLocaleString('ru-RU') + ' ₸'
@@ -523,20 +521,20 @@ export const BookingDetailPage = () => {
                     <div className="text-sm">
                       <span className="text-muted-foreground">Создано:</span>
                       <br />
-                      {dayjs(bookingData.created_at).format('DD.MM.YYYY в HH:mm')}
+                      {dayjsTz(bookingData.created_at, tz).format('DD.MM.YYYY в HH:mm')}
                     </div>
                     {bookingData.updated_at !== bookingData.created_at && (
                       <div className="text-sm">
                         <span className="text-muted-foreground">Обновлено:</span>
                         <br />
-                        {dayjs(bookingData.updated_at).format('DD.MM.YYYY в HH:mm')}
+                        {dayjsTz(bookingData.updated_at, tz).format('DD.MM.YYYY в HH:mm')}
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Google Meet Link */}
-                {bookingData.google_meet_link && bookingData.status === 'CONFIRMED' && (
+                {googleMeetLink && bookingData.status === 'CONFIRMED' && (
                   <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -549,7 +547,7 @@ export const BookingDetailPage = () => {
                         </div>
                       </div>
                       <a
-                        href={bookingData.google_meet_link}
+                        href={googleMeetLink}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -560,7 +558,7 @@ export const BookingDetailPage = () => {
                     </div>
                     <div className="mt-3 text-sm text-green-700">
                       <p className="font-mono bg-white p-2 rounded border border-green-200 break-all">
-                        {bookingData.google_meet_link}
+                        {googleMeetLink}
                       </p>
                     </div>
                   </div>
@@ -585,7 +583,7 @@ export const BookingDetailPage = () => {
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-semibold">{bookingData.student_name ?? 'Студент'}</h3>
+                        <h3 className="font-semibold">{studentName}</h3>
                         <p className="text-sm text-muted-foreground">Студент</p>
                       </div>
                     </div>
@@ -600,7 +598,7 @@ export const BookingDetailPage = () => {
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-semibold">{bookingData.mentor_name ?? 'Ментор'}</h3>
+                        <h3 className="font-semibold">{mentorName}</h3>
                         <p className="text-sm text-muted-foreground">Ментор</p>
                       </div>
                     </div>
@@ -698,7 +696,7 @@ export const BookingDetailPage = () => {
                 <div className="pt-4 border-t">
                   <div className="text-xs text-muted-foreground space-y-1">
                     <p>ID: {bookingData.id}</p>
-                    <p>Создано: {dayjs(bookingData.created_at).format('DD.MM.YYYY HH:mm')}</p>
+                    <p>Создано: {dayjsTz(bookingData.created_at, tz).format('DD.MM.YYYY HH:mm')}</p>
                   </div>
                 </div>
               </CardContent>

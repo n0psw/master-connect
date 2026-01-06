@@ -1,18 +1,21 @@
 export interface NotificationResponse {
   id: string
   user_id: string
+  type: string
   title: string
   message: string
-  type: string
-  link?: string
   is_read: boolean
+  related_entity_type?: string
+  related_entity_id?: string
+  action_url?: string
   created_at: string
-  updated_at: string
+  read_at?: string
 }
 
 export interface NotificationList {
   notifications: NotificationResponse[]
   total: number
+  unread_count: number
   page: number
   page_size: number
 }

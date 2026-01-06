@@ -1,13 +1,9 @@
 import { Star, User } from 'lucide-react'
-import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
-import 'dayjs/locale/ru'
+
+import { formatFromNow, getClientTimezone } from '@/shared/lib/dayjs'
 
 import { Card, CardContent } from '@/shared/ui/card'
 import type { Review } from '@/shared/api/reviews'
-
-dayjs.extend(relativeTime)
-dayjs.locale('ru')
 
 interface ReviewsListProps {
   reviews: Review[]
@@ -15,6 +11,8 @@ interface ReviewsListProps {
 }
 
 export const ReviewsList = ({ reviews, showMentorName = false }: ReviewsListProps) => {
+  const tz = getClientTimezone()
+
   if (reviews.length === 0) {
     return (
       <div className="text-center py-12">
@@ -79,7 +77,7 @@ export const ReviewsList = ({ reviews, showMentorName = false }: ReviewsListProp
 
                 {/* Дата */}
                 <p className="text-xs text-muted-foreground">
-                  {dayjs(review.created_at).fromNow()}
+                  {formatFromNow(review.created_at, tz)}
                 </p>
               </div>
             </div>

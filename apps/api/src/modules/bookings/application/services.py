@@ -11,6 +11,7 @@ from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
+import pytz
 
 from core.config import settings
 from core.exceptions import BusinessLogicError, NotFoundError, PermissionDeniedError
@@ -37,6 +38,10 @@ from modules.bookings.domain.schemas import (
     CalendarEventResponse,
     PaymentInfo,
 )
+from modules.notifications.application.services import create_notification_helper
+from modules.notifications.domain.models import NotificationType
+from modules.notifications.application.broadcast import get_admin_user_ids
+from modules.reviews.domain.models import Review
 from modules.mentors.domain.models import Mentor
 from modules.users.domain.models import User, UserRole, Student
 from modules.availability.domain.models import AvailabilityRule, TimeOff
@@ -50,6 +55,85 @@ class BookingService:
     
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
+
+    async def _get_user_timezone(self, user_id: UUID) -> str:
+        stmt = select(User.timezone).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        tz = result.scalar_one_or_none()
+        return tz or "Etc/GMT-5"
+
+    def _format_datetime_in_tz(self, dt: datetime, tz_str: str) -> str:
+        dt_utc = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        try:
+            tz = pytz.timezone(tz_str)
+            dt_local = dt_utc.astimezone(tz)
+            return dt_local.strftime("%d.%m %H:%M")
+        except Exception as e:
+            logger.warning(f"Failed to format datetime in timezone {tz_str}, using UTC", error=str(e))
+            return dt_utc.astimezone(timezone.utc).strftime("%d.%m %H:%M")
+
+    async def _notify_booking_event(
+        self,
+        booking: Booking,
+        notification_type: NotificationType,
+        title: str,
+        message_student: Optional[str] = None,
+        message_mentor: Optional[str] = None,
+        action_student: Optional[str] = None,
+        action_mentor: Optional[str] = None,
+        admin_message: Optional[str] = None,
+        admin_action: Optional[str] = None,
+    ) -> None:
+        """Безопасно создаёт уведомления для участников и (опционально) админов."""
+        urls = {
+            "student": action_student or f"/student/bookings/{booking.id}",
+            "mentor": action_mentor or f"/mentor/bookings/{booking.id}",
+        }
+        if message_student:
+            try:
+                await create_notification_helper(
+                    db=self.db,
+                    user_id=booking.student_id,
+                    notification_type=notification_type,
+                    title=title,
+                    message=message_student,
+                    related_entity_type="booking",
+                    related_entity_id=booking.id,
+                    action_url=urls["student"],
+                )
+            except Exception as e:
+                logger.warning("Failed to create student notification", booking_id=booking.id, error=str(e))
+        if message_mentor:
+            try:
+                await create_notification_helper(
+                    db=self.db,
+                    user_id=booking.mentor_id,
+                    notification_type=notification_type,
+                    title=title,
+                    message=message_mentor,
+                    related_entity_type="booking",
+                    related_entity_id=booking.id,
+                    action_url=urls["mentor"],
+                )
+            except Exception as e:
+                logger.warning("Failed to create mentor notification", booking_id=booking.id, error=str(e))
+        if admin_message:
+            try:
+                action = admin_action or "/admin/bookings"
+                admin_ids = await get_admin_user_ids(self.db)
+                for admin_id in admin_ids:
+                    await create_notification_helper(
+                        db=self.db,
+                        user_id=admin_id,
+                        notification_type=notification_type,
+                        title=title,
+                        message=admin_message,
+                        related_entity_type="booking",
+                        related_entity_id=booking.id,
+                        action_url=action,
+                    )
+            except Exception as e:
+                logger.warning("Failed to create admin notification", booking_id=booking.id, error=str(e))
     
     async def create_booking(
         self,
@@ -166,6 +250,25 @@ class BookingService:
             chat_dialog = Dialog(booking_id=booking.id)
             self.db.add(chat_dialog)
             
+            # Пытаемся создать Google Meet ссылку сразу (не критично если не получится)
+            if settings.GOOGLE_CALENDAR_ENABLED:
+                try:
+                    calendar_event = await self._create_calendar_event(booking)
+                    booking.meeting_event_id = calendar_event.event_id
+                    booking.meeting_url = calendar_event.meet_link
+                    logger.info(
+                        "Google Meet link created at booking creation",
+                        booking_id=booking.id,
+                        meeting_url=booking.meeting_url
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to create Google Meet at booking creation (will retry on confirmation)",
+                        booking_id=booking.id,
+                        error=str(e)
+                    )
+                    # Не критично - создадим при подтверждении оплаты
+            
             # Коммитим все вместе в одной транзакции
             await self.db.commit()
             await self.db.refresh(booking)
@@ -200,6 +303,23 @@ class BookingService:
                 logger.warning("Failed to create audit log", booking_id=booking.id, error=str(audit_error))
             
             # Планирование истечения холда временно отключено (в модели нет поля)
+
+            try:
+                student_tz = await self._get_user_timezone(student_id)
+                mentor_tz = await self._get_user_timezone(booking.mentor_id)
+                starts_at_str_student = self._format_datetime_in_tz(booking.starts_at, student_tz) if booking.starts_at else ""
+                starts_at_str_mentor = self._format_datetime_in_tz(booking.starts_at, mentor_tz) if booking.starts_at else ""
+                starts_at_str_admin = booking.starts_at.astimezone(timezone.utc).strftime("%d.%m %H:%M") if booking.starts_at else ""
+                await self._notify_booking_event(
+                    booking=booking,
+                    notification_type=NotificationType.BOOKING_CREATED,
+                    title="Новое бронирование",
+                    message_student=f"Бронирование создано на {starts_at_str_student}. Статус: HOLD.",
+                    message_mentor=f"Студент забронировал слот {starts_at_str_mentor}. Статус: HOLD.",
+                    admin_message=f"Новое бронирование HOLD {starts_at_str_admin}",
+                )
+            except Exception as notify_error:
+                logger.warning("Failed to send booking created notifications", booking_id=booking.id, error=str(notify_error))
             
             # Строим ответ
             # Если здесь произойдет ошибка, бронирование уже создано в БД
@@ -674,27 +794,34 @@ class BookingService:
                 ref = f" (ref: {confirmation_data.payment_reference})" if confirmation_data.payment_reference else ""
                 booking.payment_note = (confirmation_data.payment_notes or "") + ref
             
-            # Создаем событие в календаре
+            # Создаем/обновляем событие в календаре если еще не создано
             # Не откатываем подтверждение если календарь недоступен - логируем ошибку
-            logger.info("Attempting to create calendar event", booking_id=booking_id)
-            try:
-                calendar_event = await self._create_calendar_event(booking)
-                booking.meeting_event_id = calendar_event.event_id
-                booking.meeting_url = calendar_event.meet_link
+            if not booking.meeting_url or not booking.meeting_event_id:
+                logger.info("Attempting to create calendar event", booking_id=booking_id)
+                try:
+                    calendar_event = await self._create_calendar_event(booking)
+                    booking.meeting_event_id = calendar_event.event_id
+                    booking.meeting_url = calendar_event.meet_link
+                    logger.info(
+                        "Calendar event created successfully",
+                        booking_id=booking_id,
+                        event_id=calendar_event.event_id
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Failed to create calendar event, but booking will be confirmed",
+                        booking_id=booking_id,
+                        error=str(e),
+                        exc_info=True
+                    )
+                    # Не откатываем подтверждение - календарь не критичен
+                    # Бронирование будет подтверждено, но без ссылки на Google Meet
+            else:
                 logger.info(
-                    "Calendar event created successfully",
+                    "Google Meet link already exists, skipping calendar event creation",
                     booking_id=booking_id,
-                    event_id=calendar_event.event_id
+                    meeting_url=booking.meeting_url
                 )
-            except Exception as e:
-                logger.error(
-                    "Failed to create calendar event, but booking will be confirmed",
-                    booking_id=booking_id,
-                    error=str(e),
-                    exc_info=True
-                )
-                # Не откатываем подтверждение - календарь не критичен
-                # Бронирование будет подтверждено, но без ссылки на Google Meet
         else:
             # Проверяем валидность перехода статуса
             if not booking.can_transition_to(BookingStatus.REJECTED):
@@ -742,6 +869,33 @@ class BookingService:
                 error=str(audit_error),
                 exc_info=True
             )
+
+        try:
+            student_tz = await self._get_user_timezone(booking.student_id)
+            mentor_tz = await self._get_user_timezone(booking.mentor_id)
+            starts_at_str_student = self._format_datetime_in_tz(booking.starts_at, student_tz) if booking.starts_at else ""
+            starts_at_str_mentor = self._format_datetime_in_tz(booking.starts_at, mentor_tz) if booking.starts_at else ""
+            starts_at_str_admin = booking.starts_at.astimezone(timezone.utc).strftime("%d.%m %H:%M") if booking.starts_at else ""
+            if confirmation_data.payment_confirmed:
+                await self._notify_booking_event(
+                    booking=booking,
+                    notification_type=NotificationType.PAYMENT_VERIFIED,
+                    title="Оплата подтверждена",
+                    message_student=f"Оплата бронирования на {starts_at_str_student} подтверждена.",
+                    message_mentor=f"Оплата бронирования на {starts_at_str_mentor} подтверждена. Статус: CONFIRMED.",
+                    admin_message=f"Оплата подтверждена {starts_at_str_admin}",
+                )
+            else:
+                await self._notify_booking_event(
+                    booking=booking,
+                    notification_type=NotificationType.PAYMENT_REQUIRED,
+                    title="Оплата отклонена",
+                    message_student="Оплата отклонена администратором. Проверьте комментарии и оплатите повторно.",
+                    message_mentor=None,
+                    admin_message=f"Оплата отклонена {starts_at_str_admin}",
+                )
+        except Exception as notify_error:
+            logger.warning("Failed to send payment notifications", booking_id=booking.id, error=str(notify_error))
         
         # TODO: Отправить уведомления студенту и ментору
         
@@ -861,7 +1015,22 @@ class BookingService:
             )
         
         # TODO: Обработать возврат средств если requested
-        # TODO: Отправить уведомления
+        try:
+            student_tz = await self._get_user_timezone(booking.student_id)
+            mentor_tz = await self._get_user_timezone(booking.mentor_id)
+            starts_at_str_student = self._format_datetime_in_tz(booking.starts_at, student_tz) if booking.starts_at else ""
+            starts_at_str_mentor = self._format_datetime_in_tz(booking.starts_at, mentor_tz) if booking.starts_at else ""
+            starts_at_str_admin = booking.starts_at.astimezone(timezone.utc).strftime("%d.%m %H:%M") if booking.starts_at else ""
+            await self._notify_booking_event(
+                booking=booking,
+                notification_type=NotificationType.BOOKING_CANCELLED,
+                title="Бронирование отменено",
+                message_student=f"Бронирование на {starts_at_str_student} отменено.",
+                message_mentor=f"Бронирование на {starts_at_str_mentor} отменено.",
+                admin_message=f"Бронирование отменено {starts_at_str_admin}",
+            )
+        except Exception as notify_error:
+            logger.warning("Failed to send cancellation notifications", booking_id=booking.id, error=str(notify_error))
         
         try:
             return await self._build_booking_response(booking)
@@ -980,6 +1149,21 @@ class BookingService:
                 error=str(audit_error),
                 exc_info=True
             )
+
+        try:
+            student_tz = await self._get_user_timezone(booking.student_id)
+            mentor_tz = await self._get_user_timezone(booking.mentor_id)
+            ends_at_str_student = self._format_datetime_in_tz(booking.ends_at, student_tz) if booking.ends_at else ""
+            ends_at_str_mentor = self._format_datetime_in_tz(booking.ends_at, mentor_tz) if booking.ends_at else ""
+            await self._notify_booking_event(
+                booking=booking,
+                notification_type=NotificationType.BOOKING_COMPLETED,
+                title="Бронирование завершено",
+                message_student=f"Консультация завершена. Слот {ends_at_str_student}. Оставьте отзыв.",
+                message_mentor=f"Консультация завершена. Слот {ends_at_str_mentor}.",
+            )
+        except Exception as notify_error:
+            logger.warning("Failed to send completion notifications", booking_id=booking.id, error=str(notify_error))
         
         try:
             return await self._build_booking_response(booking)
@@ -1097,6 +1281,21 @@ class BookingService:
                 exc_info=True
             )
         
+        try:
+            student_tz = await self._get_user_timezone(booking.student_id)
+            mentor_tz = await self._get_user_timezone(booking.mentor_id)
+            ends_at_str_student = self._format_datetime_in_tz(booking.ends_at, student_tz) if booking.ends_at else ""
+            ends_at_str_mentor = self._format_datetime_in_tz(booking.ends_at, mentor_tz) if booking.ends_at else ""
+            await self._notify_booking_event(
+                booking=booking,
+                notification_type=NotificationType.BOOKING_COMPLETED,
+                title="Бронирование завершено",
+                message_student=f"Ментор отметил консультацию завершенной. Слот {ends_at_str_student}. Оставьте отзыв.",
+                message_mentor="Вы отметили консультацию завершенной.",
+            )
+        except Exception as notify_error:
+            logger.warning("Failed to send mentor completion notifications", booking_id=booking.id, error=str(notify_error))
+
         try:
             return await self._build_booking_response(booking)
         except Exception as build_error:
@@ -1221,6 +1420,33 @@ class BookingService:
                 error=str(audit_error),
                 exc_info=True
             )
+
+        try:
+            student_tz = await self._get_user_timezone(booking.student_id)
+            mentor_tz = await self._get_user_timezone(booking.mentor_id)
+            starts_at_str_student = self._format_datetime_in_tz(booking.starts_at, student_tz) if booking.starts_at else ""
+            starts_at_str_mentor = self._format_datetime_in_tz(booking.starts_at, mentor_tz) if booking.starts_at else ""
+            starts_at_str_admin = booking.starts_at.astimezone(timezone.utc).strftime("%d.%m %H:%M") if booking.starts_at else ""
+            if booking.status == BookingStatus.NO_SHOW_STUDENT:
+                await self._notify_booking_event(
+                    booking=booking,
+                    notification_type=NotificationType.BOOKING_NO_SHOW,
+                    title="Неявка студента",
+                    message_student=f"Вы отмечены как не явившийся. Слот {starts_at_str_student}.",
+                    message_mentor=f"Студент не явился на {starts_at_str_mentor}.",
+                    admin_message=f"Неявка студента на {starts_at_str_admin}",
+                )
+            else:
+                await self._notify_booking_event(
+                    booking=booking,
+                    notification_type=NotificationType.BOOKING_NO_SHOW,
+                    title="Неявка ментора",
+                    message_student=f"Ментор не явился на {starts_at_str_student}.",
+                    message_mentor=f"Вы отмечены как не явившийся. Слот {starts_at_str_mentor}.",
+                    admin_message=f"Неявка ментора на {starts_at_str_admin}",
+                )
+        except Exception as notify_error:
+            logger.warning("Failed to send no-show notifications", booking_id=booking.id, error=str(notify_error))
         
         try:
             return await self._build_booking_response(booking)
@@ -1344,7 +1570,18 @@ class BookingService:
                 exc_info=True
             )
         
-        # TODO: Отправить уведомления
+        try:
+            new_date = booking.starts_at.astimezone(timezone.utc).strftime("%d.%m %H:%M") if booking.starts_at else ""
+            await self._notify_booking_event(
+                booking=booking,
+                notification_type=NotificationType.BOOKING_RESCHEDULED,
+                title="Бронирование перенесено",
+                message_student=f"Новое время бронирования: {new_date}.",
+                message_mentor=f"Бронирование перенесено на {new_date}.",
+                admin_message=f"Бронирование перенесено на {new_date}",
+            )
+        except Exception as notify_error:
+            logger.warning("Failed to send reschedule notifications", booking_id=booking.id, error=str(notify_error))
         
         try:
             return await self._build_booking_response(booking)
@@ -1627,9 +1864,20 @@ class BookingService:
             )
         
         # Проверяем доступность ментора через availability rules
-        weekday = starts_at.weekday()  # 0 = Monday, 6 = Sunday
-        start_time = starts_at.time()
-        end_time = ends_at.time()
+        # Получаем timezone ментора для конвертации UTC -> local time
+        mentor_tz_str = await self._get_user_timezone(mentor_id)
+        try:
+            mentor_tz = pytz.timezone(mentor_tz_str)
+            starts_at_local = starts_at.astimezone(mentor_tz)
+            ends_at_local = ends_at.astimezone(mentor_tz)
+        except Exception as e:
+            logger.warning(f"Failed to convert to mentor timezone {mentor_tz_str}, using UTC", error=str(e))
+            starts_at_local = starts_at
+            ends_at_local = ends_at
+        
+        weekday = starts_at_local.weekday()  # 0 = Monday, 6 = Sunday
+        start_time = starts_at_local.time()
+        end_time = ends_at_local.time()
         
         # Ищем правило доступности для этого дня недели
         # Проверяем, что весь интервал попадает в доступное время
@@ -2052,6 +2300,22 @@ class BookingService:
                 created_at=booking.created_at.isoformat(),
                 expired_at=now.isoformat()
             )
+            try:
+                student_tz = await self._get_user_timezone(booking.student_id)
+                mentor_tz = await self._get_user_timezone(booking.mentor_id)
+                starts_at_str_student = self._format_datetime_in_tz(booking.starts_at, student_tz) if booking.starts_at else ""
+                starts_at_str_mentor = self._format_datetime_in_tz(booking.starts_at, mentor_tz) if booking.starts_at else ""
+                starts_at_str_admin = booking.starts_at.astimezone(timezone.utc).strftime("%d.%m %H:%M") if booking.starts_at else ""
+                await self._notify_booking_event(
+                    booking=booking,
+                    notification_type=NotificationType.BOOKING_EXPIRED,
+                    title="Бронирование истекло",
+                    message_student=f"Холд истёк. Слот {starts_at_str_student} освобождён.",
+                    message_mentor=f"Холд студента истёк. Слот {starts_at_str_mentor} освобождён.",
+                    admin_message=f"HOLD истёк {starts_at_str_admin}",
+                )
+            except Exception as notify_error:
+                logger.warning("Failed to send expired notifications", booking_id=booking.id, error=str(notify_error))
         
         if expired_count > 0:
             await self.db.commit()
@@ -2094,18 +2358,18 @@ class BookingModerationService:
     
     async def get_moderation_queue(self) -> BookingModerationQueue:
         """Получение очереди модерации."""
-        # Бронирования, ожидающие подтверждения оплаты
+        # Бронирования, ожидающие подтверждения оплаты (лимит 100)
         awaiting_query = select(Booking).options(
             selectinload(Booking.student),
             selectinload(Booking.mentor).selectinload(Mentor.user)
         ).where(
             Booking.status == BookingStatus.AWAITING_VERIFICATION
-        ).order_by(Booking.created_at)
+        ).order_by(Booking.created_at).limit(100)
         
         awaiting_result = await self.db.execute(awaiting_query)
         awaiting_bookings = awaiting_result.scalars().all()
         
-        # Недавние платежи (за последние 24 часа)
+        # Недавние платежи (за последние 24 часа, лимит 50)
         recent_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
         recent_query = select(Booking).options(
             selectinload(Booking.student),
@@ -2115,12 +2379,12 @@ class BookingModerationService:
                 Booking.status == BookingStatus.CONFIRMED,
                 Booking.updated_at >= recent_cutoff
             )
-        ).order_by(desc(Booking.updated_at))
+        ).order_by(desc(Booking.updated_at)).limit(50)
         
         recent_result = await self.db.execute(recent_query)
         recent_bookings = recent_result.scalars().all()
         
-        # Предстоящие сессии (на ближайшие 3 дня)
+        # Предстоящие сессии (на ближайшие 3 дня, лимит 100)
         upcoming_cutoff = datetime.now(timezone.utc) + timedelta(days=3)
         upcoming_query = select(Booking).options(
             selectinload(Booking.student),
@@ -2131,7 +2395,7 @@ class BookingModerationService:
                 Booking.starts_at <= upcoming_cutoff,
                 Booking.starts_at >= datetime.now(timezone.utc)
             )
-        ).order_by(Booking.starts_at)
+        ).order_by(Booking.starts_at).limit(100)
         
         upcoming_result = await self.db.execute(upcoming_query)
         upcoming_bookings = upcoming_result.scalars().all()

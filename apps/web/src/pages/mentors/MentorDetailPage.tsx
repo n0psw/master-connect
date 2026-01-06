@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from 'react-router-dom'
+ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Star, MapPin, Calendar, Clock, ArrowLeft, MessageCircle, Heart } from 'lucide-react'
 import { useQuery } from 'react-query'

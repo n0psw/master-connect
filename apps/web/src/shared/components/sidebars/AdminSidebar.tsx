@@ -36,13 +36,11 @@ const sidebarItems: SidebarItem[] = [
     to: '/admin/mentors',
     icon: GraduationCap,
     label: 'Менторы',
-    badge: 3, // Ожидают верификации
   },
   {
     to: '/admin/bookings',
     icon: Calendar,
     label: 'Бронирования',
-    badge: 12, // Ожидают подтверждения оплаты
   },
   {
     to: '/admin/chat',

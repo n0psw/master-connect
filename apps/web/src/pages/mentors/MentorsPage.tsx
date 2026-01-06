@@ -135,7 +135,7 @@ export const MentorsPage = () => {
   const currentSegment = segments.find((item) => item.value === sortBy) ?? segments[0]
 
   return (
-    <>
+    <div className="relative left-[-24px] w-[calc(100%+48px)] lg:left-[-24px] lg:w-[calc(100%+48px)] -mb-6">
       <Helmet>
         <title>Каталог наставников — MasterConnect</title>
         <meta
@@ -144,18 +144,15 @@ export const MentorsPage = () => {
         />
       </Helmet>
 
-      <div className="bg-[rgba(28,63,227,0.05)]">
+      <div className="bg-[rgba(28,63,227,0.05)] pb-12 lg:pb-16">
         <div className="border-b border-[rgba(28,63,227,0.08)] bg-white/80 backdrop-blur">
-          <div className="container-wide py-10 space-y-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="space-y-3">
-                <span className="inline-flex items-center gap-2 rounded-full bg-[rgba(28,63,227,0.08)] px-4 py-2 text-xs font-semibold text-primary">
-                  <ShieldCheck className="h-4 w-4" />
-                  Наставники прошли верификацию
-                </span>
-                <div className="space-y-4">
-                  <h1 className="text-4xl sm:text-5xl font-bold text-[#101828]">Каталог наставников</h1>
-                  <p className="text-lg text-[#475467] max-w-3xl">
+          <div className="container-wide px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="space-y-2.5">
+                
+                <div className="space-y-3">
+                  <h1 className="text-3xl sm:text-4xl font-bold text-[#101828]">Каталог наставников</h1>
+                  <p className="text-base sm:text-lg text-[#475467] max-w-3xl">
                     Используйте фильтры по направлению, бюджету и языку, чтобы найти наставника, который поможет подготовить документы, эссе и пройти собеседование.
                   </p>
                 </div>
@@ -233,7 +230,7 @@ export const MentorsPage = () => {
           </div>
         </div>
 
-        <div className="container-wide py-12 lg:py-16">
+        <div className="container-wide px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
           <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
             <aside className="hidden lg:block">
               <FiltersPanel
@@ -447,7 +444,7 @@ export const MentorsPage = () => {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
 
@@ -554,6 +551,7 @@ function MentorCardComponent({
   const minPrice = Math.min(...[mentor.price_30, mentor.price_45, mentor.price_60].filter(Boolean) as number[])
   const rating = Number(mentor.rating_avg) || 0
   const ratingCount = mentor.rating_count || 0
+  const hasSlots = (mentor as any)?.available_slots?.length > 0
   
   const cardClasses =
     'group rounded-2xl border border-[rgba(16,24,40,0.08)] bg-white transition-all duration-300 hover:border-primary/30 hover:shadow-lg'
@@ -672,7 +670,7 @@ function MentorCardComponent({
               <span className="text-xs font-medium text-[#101828]">Доступность</span>
             </div>
             <div className="text-xs text-[#667085]">
-              {mentor.available_slots?.length ? 'Есть слоты' : 'По запросу'}
+              {hasSlots ? 'Есть слоты' : 'По запросу'}
             </div>
           </div>
           <div className="rounded-lg border border-[rgba(255,180,87,0.3)] bg-[rgba(255,180,87,0.05)] p-2.5 min-w-0">

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Calendar, Clock, Filter, Search, CreditCard, X, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
@@ -22,6 +22,7 @@ const StudentBookingStatusFilters: Partial<Record<BookingStatus, string>> = {
   'EXPIRED': 'Истекло'
 }
 import { getImageUrl } from '@/shared/utils/imageUtils'
+import { formatDateTime, getClientTimezone } from '@/shared/lib/dayjs'
 
 export const StudentBookingsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -29,6 +30,7 @@ export const StudentBookingsPage = () => {
   const [paymentModal, setPaymentModal] = useState<{ bookingId: string } | null>(null)
   const [reviewModal, setReviewModal] = useState<{ bookingId: string; mentorName: string } | null>(null)
   const queryClient = useQueryClient()
+  const clientTz = useMemo(() => getClientTimezone(), [])
 
   // Извлекаем параметры из URL
   const currentPage = parseInt(searchParams.get('page') || '1')
@@ -111,15 +113,7 @@ export const StudentBookingsPage = () => {
     setSearchParams(new URLSearchParams())
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+  const formatDate = (dateString: string) => formatDateTime(dateString, clientTz, 'DD MMM YYYY, HH:mm')
 
   const formatPrice = (amount: number) => {
     return amount.toLocaleString('ru-RU') + ' ₸'

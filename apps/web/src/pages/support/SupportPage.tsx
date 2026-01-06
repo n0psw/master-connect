@@ -14,8 +14,7 @@ import {
   XCircle,
   AlertCircle,
 } from 'lucide-react'
-import dayjs from 'dayjs'
-import 'dayjs/locale/ru'
+import { formatDateTime, getClientTimezone } from '@/shared/lib/dayjs'
 
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -23,8 +22,6 @@ import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
 import { Textarea } from '@/shared/ui/textarea'
 import { supportApi, TicketStatus } from '@/shared/api/support'
-
-dayjs.locale('ru')
 
 const createTicketSchema = z.object({
   subject: z.string().min(1, 'Тема обязательна').max(255, 'Тема слишком длинная'),
@@ -81,6 +78,7 @@ const getStatusLabel = (status: TicketStatus) => {
 export const SupportPage = () => {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const queryClient = useQueryClient()
+  const tz = getClientTimezone()
 
   const {
     register,
@@ -96,7 +94,10 @@ export const SupportPage = () => {
     ['my-tickets'],
     () => supportApi.getMyTickets(1, 20),
     {
-      refetchInterval: 30000, // Обновляем каждые 30 секунд
+      staleTime: 1 * 60 * 1000,  // 1 минута
+      cacheTime: 3 * 60 * 1000,  // 3 минуты
+      refetchInterval: false,  // Убрать polling
+      refetchOnWindowFocus: true,
     }
   )
 
@@ -233,7 +234,7 @@ export const SupportPage = () => {
                             <span>{getStatusLabel(ticket.status)}</span>
                           </span>
                           <span className="text-sm text-muted-foreground">
-                            {dayjs(ticket.created_at).format('DD.MM.YYYY в HH:mm')}
+                            {formatDateTime(ticket.created_at, tz, 'DD.MM.YYYY в HH:mm')}
                           </span>
                         </div>
                         <h3 className="font-semibold text-lg mb-2">{ticket.subject}</h3>

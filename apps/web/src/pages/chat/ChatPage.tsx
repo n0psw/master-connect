@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
+import { formatDateTime, formatFromNow, getClientTimezone } from '@/shared/lib/dayjs'
 import { useMutation, useQuery, useQueryClient } from 'react-query'
 import { Send, MessageSquare, AlertCircle, GraduationCap, User } from 'lucide-react'
 import { toast } from 'sonner'
@@ -14,14 +13,13 @@ import { Card, CardContent, CardHeader } from '@/shared/ui/card'
 import { Textarea } from '@/shared/ui/textarea'
 import { cn } from '@/shared/utils/cn'
 
-dayjs.extend(relativeTime)
-
 export const ChatPage = () => {
   const params = useParams<{ dialogId?: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const [searchParams, setSearchParams] = useSearchParams()
+  const tz = useMemo(() => getClientTimezone(user?.timezone), [user?.timezone])
 
   const basePath =
     user?.role === 'mentor'
@@ -39,7 +37,10 @@ export const ChatPage = () => {
     isLoading: dialogsLoading,
     isFetching: dialogsFetching,
   } = useQuery(['chat-dialogs'], chatApi.getDialogs, {
-    refetchInterval: 20_000,
+    staleTime: 30 * 1000,  // 30 секунд
+    cacheTime: 2 * 60 * 1000,  // 2 минуты
+    refetchInterval: false,  // WebSocket обновляет
+    refetchOnWindowFocus: true,
   })
 
   const dialogs = dialogsData?.dialogs ?? []
@@ -107,9 +108,12 @@ export const ChatPage = () => {
     () => chatApi.getDialogMessages(activeDialogId!),
     {
       enabled: !!activeDialogId,
-      refetchInterval: 10_000,
-      keepPreviousData: false, // Не показывать старые данные при переключении
-      retry: 1, // Повторить только один раз при ошибке
+      staleTime: 15 * 1000,  // 15 секунд
+      cacheTime: 1 * 60 * 1000,  // 1 минута
+      refetchInterval: false,  // WebSocket обновляет
+      refetchOnWindowFocus: true,
+      keepPreviousData: false,
+      retry: 1,
       onError: (error: any) => {
         // Не показывать ошибку, если это просто пустой диалог
         if (error?.status !== 404) {
@@ -243,7 +247,7 @@ export const ChatPage = () => {
                     </div>
                     {dialog.last_message_at && (
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {dayjs(dialog.last_message_at).fromNow()}
+                        {formatFromNow(dialog.last_message_at, tz)}
                       </div>
                     )}
                   </button>
@@ -368,7 +372,7 @@ export const ChatPage = () => {
                         <div className="text-sm whitespace-pre-wrap break-words">{message.text}</div>
                       </div>
                       <span className="mt-1 text-xs text-muted-foreground">
-                        {dayjs(message.created_at).format('DD.MM.YYYY HH:mm')}
+                        {formatDateTime(message.created_at, tz, 'DD.MM.YYYY HH:mm')}
                       </span>
                     </div>
                   )

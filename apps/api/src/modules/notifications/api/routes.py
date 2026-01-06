@@ -1,7 +1,7 @@
 """
 API роуты для модуля уведомлений.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import get_current_active_user
@@ -15,6 +15,8 @@ from modules.notifications.domain.schemas import (
     UnreadCount,
 )
 from modules.users.domain.models import User
+from modules.auth.application.services import AuthService
+from modules.notifications.application.ws_manager import ws_manager
 
 logger = get_logger(__name__)
 
@@ -24,6 +26,11 @@ router = APIRouter(prefix="/notifications", tags=["Уведомления"])
 async def get_notification_service(db: AsyncSession = Depends(get_db)) -> NotificationService:
     """Dependency для получения сервиса уведомлений."""
     return NotificationService(db)
+
+
+async def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
+    """Dependency для AuthService (для WebSocket)."""
+    return AuthService(db)
 
 
 @router.get(
@@ -201,4 +208,28 @@ async def delete_notification(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера"
         )
+
+
+@router.websocket("/ws")
+async def notifications_ws(websocket: WebSocket, token: str, auth_service: AuthService = Depends(get_auth_service)):
+    """WebSocket для доставки уведомлений в realtime. Токен передается как query-параметр token."""
+    try:
+        user = await auth_service.get_current_user(token)
+    except Exception:
+        await websocket.close(code=4401)
+        return
+
+    await ws_manager.connect(user.id, websocket)
+    logger.info("WS connected", user_id=user.id)
+
+    try:
+        while True:
+            # Поддерживаем соединение пингами от клиента (ничего не читаем)
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(user.id, websocket)
+        logger.info("WS disconnected", user_id=user.id)
+    except Exception as e:
+        ws_manager.disconnect(user.id, websocket)
+        logger.error("WS error", user_id=user.id, error=str(e))
 

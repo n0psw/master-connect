@@ -18,6 +18,8 @@ from modules.reviews.domain.schemas import (
     ReviewStats,
     ReviewUpdate,
 )
+from modules.notifications.application.services import create_notification_helper
+from modules.notifications.domain.models import NotificationType
 from modules.users.domain.models import User, Student
 from modules.mentors.domain.models import Mentor
 
@@ -77,6 +79,20 @@ class ReviewService:
         
         # Обновляем средний рейтинг ментора
         await self._update_mentor_rating(booking.mentor_id)
+
+        try:
+            await create_notification_helper(
+                db=self.db,
+                user_id=booking.mentor_id,
+                notification_type=NotificationType.REVIEW_CREATED,
+                title="Новый отзыв",
+                message=f"Получен отзыв с оценкой {review_data.rating}",
+                related_entity_type="review",
+                related_entity_id=review.id,
+                action_url=f"/mentor/reviews",
+            )
+        except Exception as e:
+            logger.warning("Failed to create review notification", review_id=review.id, error=str(e))
         
         return await self._build_review_response(review)
     

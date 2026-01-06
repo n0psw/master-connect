@@ -2,7 +2,7 @@
 Domain модели для аутентификации.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
@@ -36,7 +36,7 @@ class RefreshToken(Base):
     @property
     def is_expired(self) -> bool:
         """Проверка истечения токена."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
     
     @property
     def is_valid(self) -> bool:

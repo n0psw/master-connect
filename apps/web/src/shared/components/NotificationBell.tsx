@@ -1,38 +1,40 @@
 import { useState, useEffect, useRef } from 'react'
 import { Bell, Check, CheckCheck, X } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
-import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
-import 'dayjs/locale/ru'
+import { formatFromNow, getClientTimezone } from '@/shared/lib/dayjs'
 
 import { notificationsApi } from '@/shared/api/notifications'
 import { Button } from '@/shared/ui/button'
 import type { NotificationResponse } from '@/shared/types/notifications'
-
-dayjs.extend(relativeTime)
-dayjs.locale('ru')
+import { useNotificationsSocket } from '@/shared/hooks/useNotificationsSocket'
+import { useAuthStore } from '@/shared/store/auth'
 
 export const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
+  useNotificationsSocket()
 
   // Получение счетчика непрочитанных уведомлений
   const { data: unreadCount } = useQuery(
-    'unread-notifications-count',
+    ['unread-notifications-count', user?.id],
     () => notificationsApi.getUnreadNotificationsCount(),
     {
-      refetchInterval: 30000, // Обновляем каждые 30 секунд
+      staleTime: 1 * 60 * 1000,  // 1 минута
+      cacheTime: 3 * 60 * 1000,   // 3 минуты
+      refetchInterval: false,  // WebSocket обновляет, polling не нужен
       refetchOnWindowFocus: true,
+      enabled: !!user?.id,
     }
   )
 
   // Получение последних уведомлений
   const { data: notificationsData, isLoading } = useQuery(
-    'recent-notifications',
+    ['recent-notifications', user?.id],
     () => notificationsApi.getMyNotifications(1, 5),
     {
-      enabled: isOpen, // Загружаем только когда dropdown открыт
+      enabled: isOpen && !!user?.id,
     }
   )
 
@@ -42,7 +44,8 @@ export const NotificationBell = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('unread-notifications-count')
-        queryClient.invalidateQueries('recent-notifications')
+        queryClient.invalidateQueries(['unread-notifications-count', user?.id])
+        queryClient.invalidateQueries(['recent-notifications', user?.id])
       },
     }
   )
@@ -53,7 +56,8 @@ export const NotificationBell = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('unread-notifications-count')
-        queryClient.invalidateQueries('recent-notifications')
+        queryClient.invalidateQueries(['unread-notifications-count', user?.id])
+        queryClient.invalidateQueries(['recent-notifications', user?.id])
         setIsOpen(false)
       },
     }
@@ -82,30 +86,19 @@ export const NotificationBell = () => {
     }
 
     // Если есть ссылка, переходим
-    if (notification.link) {
-      window.location.href = notification.link
+    if (notification.action_url) {
+      window.location.href = notification.action_url
     }
 
     setIsOpen(false)
   }
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'booking':
-        return '📅'
-      case 'chat':
-        return '💬'
-      case 'payment':
-        return '💳'
-      case 'success':
-        return '✅'
-      case 'warning':
-        return '⚠️'
-      case 'error':
-        return '❌'
-      default:
-        return '📢'
-    }
+    const t = type.toLowerCase()
+    if (t.startsWith('booking')) return '📅'
+    if (t.startsWith('payment')) return '💳'
+    if (t.includes('message')) return '💬'
+    return '📢'
   }
 
   return (
@@ -182,7 +175,7 @@ export const NotificationBell = () => {
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
-                        {dayjs(notification.created_at).fromNow()}
+        {formatFromNow(notification.created_at, getClientTimezone(user?.timezone))}
                       </p>
                     </div>
                   </div>
@@ -197,17 +190,7 @@ export const NotificationBell = () => {
           </div>
 
           {/* Футер */}
-          {notificationsData && notificationsData.notifications.length > 0 && (
-            <div className="p-3 border-t text-center">
-              <a
-                href="/notifications"
-                className="text-sm text-primary hover:underline"
-                onClick={() => setIsOpen(false)}
-              >
-                Посмотреть все уведомления
-              </a>
-            </div>
-          )}
+          {/* Нет отдельной страницы уведомлений */}
         </div>
       )}
     </div>

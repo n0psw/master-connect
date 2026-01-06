@@ -23,8 +23,7 @@ import {
   XCircle,
   Timer,
 } from 'lucide-react'
-import dayjs from 'dayjs'
-import 'dayjs/locale/ru'
+import { dayjsTz, formatDateTime as formatDateTimeTz, getClientTimezone } from '@/shared/lib/dayjs'
 
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -34,8 +33,6 @@ import { adminApi } from '@/shared/api/admin'
 import { bookingsApi } from '@/shared/api/bookings'
 import { BookingStatusLabels, BookingStatusColors } from '@/shared/types/bookings'
 import type { AdminBooking, AdminBookingSearchParams, AdminBookingAction } from '@/shared/types/admin'
-
-dayjs.locale('ru')
 
 // Безопасные геттеры для разных форматов API
 const getScheduledAt = (b: any) => b?.starts_at
@@ -154,11 +151,12 @@ interface BookingActionsProps {
 
 const BookingActions = ({ booking, onAction, onVerifyPayment }: BookingActionsProps) => {
   const [showMenu, setShowMenu] = useState(false)
+  const tz = getClientTimezone()
 
   const canConfirm = booking.status === 'AWAITING_VERIFICATION'
   const canCancel = ['HOLD', 'AWAITING_VERIFICATION', 'CONFIRMED'].includes(booking.status)
-  const canComplete = booking.status === 'CONFIRMED' && dayjs(getScheduledAt(booking)).isBefore(dayjs())
-  const canMarkNoShow = booking.status === 'CONFIRMED' && dayjs(getScheduledAt(booking)).add(1, 'hour').isBefore(dayjs())
+  const canComplete = booking.status === 'CONFIRMED' && dayjsTz(getScheduledAt(booking), tz).isBefore(dayjsTz(undefined, tz))
+  const canMarkNoShow = booking.status === 'CONFIRMED' && dayjsTz(getScheduledAt(booking), tz).add(1, 'hour').isBefore(dayjsTz(undefined, tz))
 
   return (
     <div className="relative">
@@ -387,9 +385,8 @@ export const AdminBookingsPage = () => {
     exportMutation.mutate()
   }
 
-  const formatDateTime = (dateString: string) => {
-    return dayjs(dateString).format('DD.MM.YYYY в HH:mm')
-  }
+const tz = getClientTimezone()
+const formatDateTime = (dateString: string) => formatDateTimeTz(dateString, tz, 'DD.MM.YYYY в HH:mm')
 
   const formatDuration = (minutes: number) => {
     return `${minutes} мин`

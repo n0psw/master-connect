@@ -36,6 +36,14 @@ from modules.bookings.domain.models import Booking, BookingStatus
 
 logger = get_logger(__name__)
 
+_calendar_cache = {}
+_cache_ttl = {}
+
+
+def _get_calendar_cache_key(mentor_id: UUID, date_from: date, date_to: date, duration_minutes: Optional[int], timezone_str: str) -> str:
+    """Генерация ключа кэша для календаря."""
+    return f"calendar:{mentor_id}:{date_from}:{date_to}:{duration_minutes}:{timezone_str}"
+
 
 class AvailabilityService:
     """Сервис для управления доступностью менторов."""
@@ -160,6 +168,19 @@ class AvailabilityService:
 
         await self.db.commit()
         
+        # Очищаем кэш календаря для этого ментора
+        global _calendar_cache, _cache_ttl
+        keys_to_remove = [k for k in _calendar_cache.keys() if str(mentor_id) in k]
+        for key in keys_to_remove:
+            _calendar_cache.pop(key, None)
+            _cache_ttl.pop(key, None)
+        
+        logger.info(
+            "Cache invalidated for mentor after settings update",
+            mentor_id=mentor_id,
+            keys_removed=len(keys_to_remove)
+        )
+        
         settings_query = select(
             MentorSettings.mentor_id,
             MentorSettings.timezone,
@@ -257,6 +278,19 @@ class AvailabilityService:
                 )
 
         await self.db.commit()
+        
+        # Очищаем кэш календаря для этого ментора
+        global _calendar_cache, _cache_ttl
+        keys_to_remove = [k for k in _calendar_cache.keys() if str(mentor_id) in k]
+        for key in keys_to_remove:
+            _calendar_cache.pop(key, None)
+            _cache_ttl.pop(key, None)
+        
+        logger.info(
+            "Cache invalidated for mentor",
+            mentor_id=mentor_id,
+            keys_removed=len(keys_to_remove)
+        )
 
         # Возвращаем текущее представление расписания
         rules_q = select(AvailabilityRule).where(AvailabilityRule.mentor_id == mentor_id).order_by(
@@ -481,10 +515,28 @@ class AvailabilityService:
         date_from: date,
         date_to: date,
         duration_minutes: Optional[int] = None,
-        timezone_str: str = "UTC"
+        timezone_str: str = "Etc/GMT-5"
     ) -> AvailabilityCalendar:
         """Генерация календаря доступности с временными слотами."""
+        
         await self._check_mentor_exists(mentor_id)
+        
+        # Получаем настройки ментора для определения его timezone
+        settings_query = select(MentorSettings).where(MentorSettings.mentor_id == mentor_id)
+        settings_result = await self.db.execute(settings_query)
+        mentor_settings = settings_result.scalar_one_or_none()
+        
+        # Используем timezone МЕНТОРА, а не студента
+        mentor_timezone = mentor_settings.timezone if mentor_settings and mentor_settings.timezone else "Etc/GMT-5"
+        
+        cache_key = _get_calendar_cache_key(mentor_id, date_from, date_to, duration_minutes, mentor_timezone)
+        now = datetime.now(timezone.utc)
+        
+        if cache_key in _calendar_cache:
+            cache_expiry = _cache_ttl.get(cache_key)
+            if cache_expiry and now < cache_expiry:
+                logger.debug("Returning cached availability calendar", cache_key=cache_key)
+                return _calendar_cache[cache_key]
         
         # Получаем правила доступности
         rules_query = select(AvailabilityRule).where(
@@ -504,7 +556,7 @@ class AvailabilityService:
                 mentor_id=mentor_id,
                 date_from=date_from.isoformat(),
                 date_to=date_to.isoformat(),
-                timezone=timezone_str,
+                timezone=mentor_timezone,
                 slots=[]
             )
         
@@ -527,7 +579,7 @@ class AvailabilityService:
         # Получаем существующие бронирования
         booked_slots = await self._get_booked_slots(mentor_id, date_from, date_to)
         
-        # Генерируем слоты
+        # Генерируем слоты в timezone МЕНТОРА
         slots = self._generate_time_slots(
             rules=rules,
             time_offs=time_offs,
@@ -535,24 +587,35 @@ class AvailabilityService:
             date_from=date_from,
             date_to=date_to,
             duration_filter=duration_minutes,
-            timezone_str=timezone_str,
+            timezone_str=mentor_timezone,
             mentor=mentor
         )
         
         logger.info(
             "Availability calendar generated",
             mentor_id=mentor_id,
+            mentor_timezone=mentor_timezone,
             date_range=f"{date_from} - {date_to}",
             slots_count=len(slots)
         )
         
-        return AvailabilityCalendar(
+        result = AvailabilityCalendar(
             mentor_id=mentor_id,
             date_from=date_from.isoformat(),
             date_to=date_to.isoformat(),
-            timezone=timezone_str,
+            timezone=mentor_timezone,
             slots=slots
         )
+        
+        _calendar_cache[cache_key] = result
+        _cache_ttl[cache_key] = now + timedelta(seconds=60)
+        
+        if len(_calendar_cache) > 1000:
+            _calendar_cache.clear()
+            _cache_ttl.clear()
+            logger.warning("Calendar cache cleared due to size limit")
+        
+        return result
     
     async def get_availability_conflicts(
         self,
@@ -1097,7 +1160,7 @@ class AvailabilityService:
             sunday=weekday_slots[6]
         )
     
-    def _rules_to_simple_weekly_schedule(self, rules: List[AvailabilityRule]) -> dict:
+    def _rules_to_simple_weekly_schedule(self, rules: List[AvailabilityRule]) -> WeeklyScheduleResponse:
         """Преобразование правил в простой формат для UI (без timezone конвертации)."""
         
         rules_by_weekday = {}
@@ -1109,7 +1172,7 @@ class AvailabilityService:
                 "end_time": rule.time_end.strftime("%H:%M")
             })
         
-        return {
+        schedule_dict = {
             "monday": rules_by_weekday.get(0, []),
             "tuesday": rules_by_weekday.get(1, []),
             "wednesday": rules_by_weekday.get(2, []),
@@ -1118,4 +1181,6 @@ class AvailabilityService:
             "saturday": rules_by_weekday.get(5, []),
             "sunday": rules_by_weekday.get(6, [])
         }
+        
+        return WeeklyScheduleResponse(**schedule_dict)
 

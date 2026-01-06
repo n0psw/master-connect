@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Calendar, Clock, Filter, X, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react'
@@ -11,9 +11,11 @@ import { bookingsApi } from '@/shared/api/bookings'
 import { BookingStatusLabels, BookingStatusColors } from '@/shared/types/bookings'
 import type { BookingSearchParams, BookingStatus } from '@/shared/types/bookings'
 import { getImageUrl } from '@/shared/utils/imageUtils'
+import { formatDateTime, getClientTimezone } from '@/shared/lib/dayjs'
 
 export const MentorBookingsPage = () => {
   const navigate = useNavigate()
+  const clientTz = useMemo(() => getClientTimezone(), [])
   const [searchParams, setSearchParams] = useSearchParams()
   const [showFilters, setShowFilters] = useState(false)
   const [loadingBookingId, setLoadingBookingId] = useState<string | null>(null)
@@ -121,15 +123,7 @@ export const MentorBookingsPage = () => {
     setSearchParams(new URLSearchParams())
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+  const formatDate = (dateString: string) => formatDateTime(dateString, clientTz, 'DD MMM YYYY, HH:mm')
 
   const formatPrice = (amount: number) => {
     return amount.toLocaleString('ru-RU') + ' ₸'
