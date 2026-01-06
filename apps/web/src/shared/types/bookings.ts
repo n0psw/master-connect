@@ -9,17 +9,21 @@ export type BookingStatus =
   | 'NO_SHOW_MENTOR'          // Ментор не пришел
   | 'EXPIRED'                 // Истекло время HOLD
 
-export interface BookingBase {
+export interface BookingCreate {
   mentor_id: string
-  starts_at: string        // ISO datetime
+  starts_at: string
   duration_minutes: number
-  price_amount: number
-  intake_form: Record<string, any>  // JSON с ответами студента
+  intake_form: Record<string, any>
   notes?: string
 }
 
-export interface BookingCreate extends BookingBase {
-  // При создании все поля из BookingBase обязательны, кроме notes
+export interface BookingBase {
+  mentor_id: string
+  starts_at: string
+  duration_minutes: number
+  price_amount: number
+  intake_form: Record<string, any>
+  notes?: string
 }
 
 export interface Booking extends BookingBase {

@@ -42,7 +42,7 @@ export interface UserWithProfile extends UserProfile {
 
 // Константы для селектов
 export const TIMEZONES = [
-  { value: 'Asia/Almaty', label: 'Алматы (UTC+6)' },
+  { value: 'Etc/GMT-5', label: 'Алматы (UTC+5)' },
   { value: 'Asia/Tashkent', label: 'Ташкент (UTC+5)' },
   { value: 'Asia/Bishkek', label: 'Бишкек (UTC+6)' },
   { value: 'Asia/Dushanbe', label: 'Душанбе (UTC+5)' },

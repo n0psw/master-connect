@@ -69,7 +69,7 @@ export const StudentProfilePage = () => {
     values: profile ? {
       name: profile.name || '',
       phone: profile.phone || '',
-      timezone: profile.timezone || 'Asia/Almaty',
+      timezone: profile.timezone || 'Etc/GMT-5',
       locale: profile.locale || 'ru',
     } : undefined
   })

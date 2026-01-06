@@ -140,8 +140,23 @@ export const BookConsultationPage = () => {
       return
     }
 
-    // Создаем дату в локальном времени браузера и отправляем в ISO (UTC)
-    const scheduledAtIso = new Date(`${data.date}T${data.time}:00`).toISOString()
+    const slots = availabilityCalendar?.slots || []
+    const selectedSlot = slots.find((s: any) => {
+      if (!s.is_available) return false
+      const utcDate = new Date(s.start)
+      const localDateKey = utcDate.toISOString().split('T')[0]
+      const hours = utcDate.getHours().toString().padStart(2, '0')
+      const minutes = utcDate.getMinutes().toString().padStart(2, '0')
+      const timeKey = `${hours}:${minutes}`
+      return localDateKey === data.date && timeKey === data.time
+    })
+
+    if (!selectedSlot) {
+      toast.error('Выбранный слот не найден. Пожалуйста, обновите календарь.')
+      return
+    }
+
+    const scheduledAtIso = selectedSlot.start
     
     const specificQuestions = data.questions
       ? data.questions

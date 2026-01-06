@@ -256,7 +256,9 @@ class AvailabilityService:
                     raise BusinessLogicError("Время окончания должно быть позже времени начала")
 
                 # Создаем одно универсальное правило
-                # slot_duration_minutes будет использоваться как минимальная длительность (30 минут)
+                # slot_duration_minutes=30 - это дефолтное значение, но система гибкая:
+                # При запросе календаря можно указать любую длительность (30/45/60 мин),
+                # и слоты будут сгенерированы с этой длительностью независимо от slot_duration_minutes
                 rule = AvailabilityRule(
                     mentor_id=mentor_id,
                     weekday=weekday,
@@ -715,7 +717,8 @@ class AvailabilityService:
             rules_count=len(rules),
             unique_rules_count=len(rules_by_weekday_and_time),
             date_range=f"{date_from} - {date_to}",
-            duration_filter=duration_filter
+            duration_filter=duration_filter,
+            timezone_str=timezone_str
         )
         
         while current_date <= date_to:
@@ -771,6 +774,17 @@ class AvailabilityService:
         actual_duration = requested_duration if requested_duration else rule.slot_duration_minutes
         slot_duration = timedelta(minutes=actual_duration)
         buffer_duration = timedelta(minutes=rule.buffer_minutes)
+        
+        logger.debug(
+            "Generating slots for rule",
+            weekday=rule.weekday,
+            target_date=target_date.isoformat(),
+            time_range=f"{rule.time_start} - {rule.time_end}",
+            rule_slot_duration=rule.slot_duration_minutes,
+            requested_duration=requested_duration,
+            actual_duration=actual_duration,
+            buffer_minutes=rule.buffer_minutes
+        )
         
         while current_time + slot_duration <= work_end:
             slot_end = current_time + slot_duration

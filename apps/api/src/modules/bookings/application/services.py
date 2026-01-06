@@ -275,13 +275,14 @@ class BookingService:
             await self.db.refresh(chat_dialog)
             
             logger.info(
-                "Booking created",
+                "Booking created successfully",
                 booking_id=booking.id,
                 student_id=student_id,
                 mentor_id=booking_data.mentor_id,
-                starts_at=booking_data.starts_at,
+                starts_at=booking_data.starts_at.isoformat() if booking_data.starts_at else None,
+                duration_minutes=booking_data.duration_minutes,
                 status=booking.status,
-                price=price_amount
+                price=float(price_amount)
             )
             
             # Создаем аудит лог (не критично, если не получится)
@@ -1894,6 +1895,15 @@ class BookingService:
         availability_rule = availability_result.scalar_one_or_none()
         
         if not availability_rule:
+            logger.warning(
+                "Availability rule not found for booking",
+                mentor_id=mentor_id,
+                weekday=weekday,
+                start_time=start_time.isoformat(),
+                end_time=end_time.isoformat(),
+                starts_at_local=starts_at_local.isoformat(),
+                mentor_timezone=mentor_tz_str
+            )
             raise BusinessLogicError(
                 f"Ментор недоступен в выбранное время. Проверьте расписание ментора."
             )

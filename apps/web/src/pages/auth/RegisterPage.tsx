@@ -38,7 +38,7 @@ const registerSchema = z.object({
       if (!value) return true
       return /^[\+]?[\d\s\-\(\)]{10,}$/.test(value.replace(/\s/g, ''))
     }, 'Некорректный формат телефона'),
-  timezone: z.string().default('Asia/Almaty'),
+  timezone: z.string().default('Etc/GMT-5'),
   locale: z.string().default('ru')
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Пароли не совпадают',
@@ -62,7 +62,7 @@ export const RegisterPage = () => {
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      timezone: 'Asia/Almaty',
+      timezone: 'Etc/GMT-5',
       locale: 'ru'
     }
   })
