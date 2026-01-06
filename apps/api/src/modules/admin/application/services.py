@@ -819,12 +819,11 @@ class SystemManagementService:
         except Exception:
             database_status = "down"
         
-        # TODO: Проверить Redis, email сервис, файловое хранилище
+        # TODO: Проверить email сервис, файловое хранилище
         
         return SystemHealth(
             status="healthy" if database_status == "healthy" else "degraded",
             database_status=database_status,
-            redis_status="healthy",  # TODO: Реальная проверка
             email_service_status="healthy",  # TODO: Реальная проверка
             storage_status="healthy",  # TODO: Реальная проверка
             active_connections=0,  # TODO: Получить из pool

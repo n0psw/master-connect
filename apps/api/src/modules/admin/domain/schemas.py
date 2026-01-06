@@ -232,7 +232,6 @@ class SystemHealth(BaseModel):
     """Состояние системы."""
     status: str = Field(..., description="Общий статус (healthy, degraded, down)")
     database_status: str = Field(..., description="Статус базы данных")
-    redis_status: str = Field(..., description="Статус Redis")
     email_service_status: str = Field(..., description="Статус email сервиса")
     storage_status: str = Field(..., description="Статус файлового хранилища")
     
