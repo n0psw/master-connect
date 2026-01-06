@@ -109,6 +109,7 @@ test_api_endpoints.sh
 *.audit.md
 *_AUDIT*.md
 *_REPORT*.md
+!AUDIT_REPORT_*.md
 
 # Documentation files (instructions should be in chat, not in repo)
 *_DEPLOY.md
