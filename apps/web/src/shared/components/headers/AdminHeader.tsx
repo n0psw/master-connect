@@ -1,4 +1,4 @@
-import { Search, Shield, LogOut } from 'lucide-react'
+import { Shield, LogOut } from 'lucide-react'
 
 import { Button } from '@/shared/ui/button'
 import { useAuthStore } from '@/shared/store/auth'
@@ -18,25 +18,10 @@ export const AdminHeader = () => {
   return (
     <header className="border-b bg-background">
       <div className="flex h-16 items-center justify-between px-6">
-        {/* Логотип + Админ индикатор */}
-        <div className="flex items-center space-x-4">
-          <img src="/masteredlogo-ico.ico" alt="MasterConnect" className="h-10 w-10" />
-          <div className="flex items-center space-x-2 rounded-lg bg-gradient-to-r from-red-50 to-pink-50 px-4 py-2 border border-red-100">
-            <Shield className="h-4 w-4 text-red-600" />
-            <span className="text-sm font-semibold text-red-600">Административная панель</span>
-          </div>
-        </div>
-
-        {/* Поиск */}
-        <div className="flex items-center flex-1 max-w-md mx-8">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="search"
-              placeholder="Поиск пользователей, менторов, бронирований..."
-              className="w-full rounded-md border border-input bg-background pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
+        {/* Админ индикатор */}
+        <div className="flex items-center space-x-2 rounded-lg bg-gradient-to-r from-red-50 to-pink-50 px-4 py-2 border border-red-100">
+          <Shield className="h-4 w-4 text-red-600" />
+          <span className="text-sm font-semibold text-red-600">Административная панель</span>
         </div>
 
         {/* Действия */}

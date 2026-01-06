@@ -38,10 +38,6 @@ export const PublicHeader = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[rgba(16,24,40,0.08)] bg-white/85 backdrop-blur-xl supports-[backdrop-filter]:bg-white/75 shadow-[0_18px_44px_-28px_rgba(16,24,40,0.6)]">
       <div className="container-wide flex items-center justify-between gap-6 py-3">
-        <Link to="/" className="flex items-center gap-3 rounded-full px-3 py-2 transition hover:bg-white/70">
-          <img src="/masteredlogo-ico.ico" alt="MasterConnect" className="h-10 w-10 rounded-full shadow-lg" />
-        </Link>
-
         <nav className="hidden items-center gap-2 md:flex">
             {navItems.map((item) => (
               <Link

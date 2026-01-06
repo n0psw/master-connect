@@ -95,13 +95,13 @@ export const BookConsultationPage = () => {
     ['mentor-availability-calendar', mentorId, selectedDuration, availabilityKey],
     () =>
       availabilityApi.getMentorAvailableCalendar(
-        mentorId!,
-        dateFrom.toISOString().split('T')[0],
-        dateTo.toISOString().split('T')[0],
-        selectedDuration ? parseInt(selectedDuration) : undefined,
+      mentorId!,
+      dateFrom.toISOString().split('T')[0],
+      dateTo.toISOString().split('T')[0],
+      selectedDuration ? parseInt(selectedDuration) : undefined,
         clientTimezone
-      ),
-    {
+    ),
+    { 
       enabled: !!mentorId && !!selectedDuration,
       staleTime: 2 * 60 * 1000,  // 2 минуты - данные свежие
       cacheTime: 5 * 60 * 1000,  // 5 минут - хранить в кэше
@@ -121,6 +121,7 @@ export const BookConsultationPage = () => {
 
   // Мутация для создания бронирования
   const bookingMutation = useMutation(bookingsApi.createBooking, {
+    retry: false,
     onSuccess: () => {
       queryClient.invalidateQueries(['my-bookings'])
       queryClient.invalidateQueries(['booking-stats'])
@@ -135,6 +136,10 @@ export const BookConsultationPage = () => {
   })
 
   const onSubmit = async (data: BookingFormData) => {
+    if (bookingMutation.isLoading) {
+      return
+    }
+
     if (!mentor || !selectedPrice) {
       toast.error('Данные ментора не загружены')
       return

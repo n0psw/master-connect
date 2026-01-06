@@ -61,11 +61,21 @@ export interface MentorCard {
   university: string | null
 }
 
-export interface MentorDetail extends Mentor {
-  // Дополнительная статистика
+export interface MentorDetail {
+  mentor: Mentor
+  user: {
+    id: string
+    name: string | null
+    email: string
+    phone: string | null
+    timezone: string
+    locale: string
+    created_at: string
+  }
+  universities: MentorUniversity[]
+  reviews_count: number
   total_consultations: number
-  response_rate: number | null
-  avg_response_time_hours: number | null
+  completed_consultations: number
 }
 
 export interface MentorFilters {

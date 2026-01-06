@@ -1,4 +1,4 @@
-import { Search, User, LogOut, Settings } from 'lucide-react'
+import { User, LogOut, Settings } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from 'react-query'
 
@@ -46,25 +46,7 @@ export const PrivateHeader = () => {
 
   return (
     <header className="border-b bg-background">
-      <div className="flex h-16 items-center justify-between px-6">
-        {/* Логотип */}
-        <div className="flex items-center space-x-3">
-          <img src="/masteredlogo-ico.ico" alt="MasterConnect" className="h-10 w-10" />
-          <span className="text-lg font-bold hidden md:block">MasterConnect</span>
-        </div>
-
-        {/* Поиск */}
-        <div className="flex items-center flex-1 max-w-md">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="search"
-              placeholder="Поиск..."
-              className="w-full rounded-md border border-input bg-background pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </div>
-
+      <div className="flex h-16 items-center justify-end px-6">
         {/* Действия */}
         <div className="flex items-center space-x-4">
           <NotificationBell />

@@ -193,7 +193,7 @@ class BookingService:
                     f"Выберите другую дату."
                 )
             
-            # Проверяем на дублирование бронирования (явная проверка перед созданием)
+            # Проверяем на дублирование бронирования с блокировкой (предотвращает race condition)
             duplicate_query = select(Booking).where(
                 and_(
                     Booking.mentor_id == booking_data.mentor_id,
@@ -205,7 +205,7 @@ class BookingService:
                         BookingStatus.CONFIRMED
                     ])
                 )
-            )
+            ).with_for_update(skip_locked=True)
             duplicate_result = await self.db.execute(duplicate_query)
             duplicate_booking = duplicate_result.scalar_one_or_none()
             
@@ -311,6 +311,7 @@ class BookingService:
                 starts_at_str_student = self._format_datetime_in_tz(booking.starts_at, student_tz) if booking.starts_at else ""
                 starts_at_str_mentor = self._format_datetime_in_tz(booking.starts_at, mentor_tz) if booking.starts_at else ""
                 starts_at_str_admin = booking.starts_at.astimezone(timezone.utc).strftime("%d.%m %H:%M") if booking.starts_at else ""
+                booking_id_str = str(booking.id)
                 await self._notify_booking_event(
                     booking=booking,
                     notification_type=NotificationType.BOOKING_CREATED,
@@ -320,7 +321,7 @@ class BookingService:
                     admin_message=f"Новое бронирование HOLD {starts_at_str_admin}",
                 )
             except Exception as notify_error:
-                logger.warning("Failed to send booking created notifications", booking_id=booking.id, error=str(notify_error))
+                logger.warning("Failed to send booking created notifications", booking_id=booking_id_str, error=str(notify_error))
             
             # Строим ответ
             # Если здесь произойдет ошибка, бронирование уже создано в БД

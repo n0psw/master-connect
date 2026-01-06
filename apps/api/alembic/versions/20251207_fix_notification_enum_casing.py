@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "fix_notification_enum_casing_20251207"
+revision = "fix_enum_casing"  # Shortened from fix_notification_enum_casing_20251207 (too long for VARCHAR(32))
 down_revision = "ef7d2cbe0dd0"
 branch_labels = None
 depends_on = None
