@@ -326,20 +326,31 @@ class BookingService:
             # Строим ответ
             # Если здесь произойдет ошибка, бронирование уже создано в БД
             # Но мы все равно должны вернуть успешный ответ, поэтому оборачиваем в try-except
+            booking_id_for_response = booking.id
             try:
-                return await self._build_booking_response(booking)
+                # Перезагружаем booking со всеми связанными объектами для безопасного доступа
+                # Это предотвращает MissingGreenlet при lazy loading
+                from modules.bookings.domain.models import Booking as BookingModel
+                from modules.users.domain.models import Student, Mentor
+                reload_query = select(BookingModel).options(
+                    selectinload(BookingModel.student).selectinload(Student.user),
+                    selectinload(BookingModel.mentor).selectinload(Mentor.user),
+                ).where(BookingModel.id == booking.id)
+                reload_result = await self.db.execute(reload_query)
+                booking_loaded = reload_result.scalar_one()
+                return await self._build_booking_response(booking_loaded)
             except Exception as build_error:
                 # Если не удалось построить ответ, логируем, но не падаем
                 # Бронирование уже создано, студент должен получить успех
                 logger.error(
                     "Failed to build booking response, but booking was created",
-                    booking_id=booking.id,
+                    booking_id=booking_id_str,
                     error=str(build_error),
                     exc_info=True
                 )
                 # Возвращаем минимальный ответ с основными данными
                 return BookingResponse(
-                    id=booking.id,
+                    id=booking_id_for_response,
                     student_id=booking.student_id,
                     mentor_id=booking.mentor_id,
                     starts_at=booking.starts_at,

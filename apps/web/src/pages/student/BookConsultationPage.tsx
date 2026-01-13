@@ -125,12 +125,14 @@ export const BookConsultationPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['my-bookings'])
       queryClient.invalidateQueries(['booking-stats'])
-      queryClient.invalidateQueries(['mentor-availability-calendar', mentorId, selectedDuration, availabilityKey])
+      queryClient.invalidateQueries(['mentor-availability-calendar', mentorId])
+      queryClient.refetchQueries(['mentor-availability-calendar', mentorId])
       setStep('confirmation')
       toast.success('Консультация забронирована!')
     },
     onError: (error: any) => {
-      queryClient.invalidateQueries(['mentor-availability-calendar', mentorId, selectedDuration, availabilityKey])
+      queryClient.invalidateQueries(['mentor-availability-calendar', mentorId])
+      queryClient.refetchQueries(['mentor-availability-calendar', mentorId])
       toast.error('Ошибка при бронировании: ' + (error?.detail || error?.message))
     }
   })
@@ -149,7 +151,10 @@ export const BookConsultationPage = () => {
     const selectedSlot = slots.find((s: any) => {
       if (!s.is_available) return false
       const utcDate = new Date(s.start)
-      const localDateKey = utcDate.toISOString().split('T')[0]
+      const year = utcDate.getFullYear()
+      const month = String(utcDate.getMonth() + 1).padStart(2, '0')
+      const day = String(utcDate.getDate()).padStart(2, '0')
+      const localDateKey = `${year}-${month}-${day}`
       const hours = utcDate.getHours().toString().padStart(2, '0')
       const minutes = utcDate.getMinutes().toString().padStart(2, '0')
       const timeKey = `${hours}:${minutes}`
@@ -206,7 +211,10 @@ export const BookConsultationPage = () => {
     availableSlots.forEach((s: any) => {
       const utcDate = new Date(s.start)
       const localDate = new Date(utcDate.getTime())
-      const dateKey = localDate.toISOString().split('T')[0]
+      const year = localDate.getFullYear()
+      const month = String(localDate.getMonth() + 1).padStart(2, '0')
+      const day = String(localDate.getDate()).padStart(2, '0')
+      const dateKey = `${year}-${month}-${day}`
       if (!datesMap.has(dateKey)) {
         datesMap.set(dateKey, localDate)
       }
@@ -232,7 +240,10 @@ export const BookConsultationPage = () => {
       .filter((s: any) => {
         if (!s.is_available) return false
         const utcDate = new Date(s.start)
-        const localDateKey = utcDate.toISOString().split('T')[0]
+        const year = utcDate.getFullYear()
+        const month = String(utcDate.getMonth() + 1).padStart(2, '0')
+        const day = String(utcDate.getDate()).padStart(2, '0')
+        const localDateKey = `${year}-${month}-${day}`
         return localDateKey === selectedDate
       })
       .map((s: any) => {

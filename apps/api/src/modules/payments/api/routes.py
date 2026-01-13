@@ -93,7 +93,21 @@ async def create_payment_evidence(
         
         # Создаем директорию для загрузок если её нет
         upload_dir = Path("uploads/payment_evidences")
-        upload_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            upload_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
+        except (PermissionError, OSError) as e:
+            import os
+            import stat
+            try:
+                os.makedirs(upload_dir, mode=0o755, exist_ok=True)
+                if upload_dir.exists():
+                    os.chmod(upload_dir, 0o755)
+            except (PermissionError, OSError):
+                logger.error(f"Cannot create upload directory: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Ошибка доступа к директории загрузок. Обратитесь к администратору."
+                )
         
         # Генерируем уникальное имя файла
         unique_filename = f"{uuid4().hex}{file_extension}"

@@ -19,9 +19,9 @@ export const AdminHeader = () => {
     <header className="border-b bg-background">
       <div className="flex h-16 items-center justify-between px-6">
         {/* Админ индикатор */}
-        <div className="flex items-center space-x-2 rounded-lg bg-gradient-to-r from-red-50 to-pink-50 px-4 py-2 border border-red-100">
-          <Shield className="h-4 w-4 text-red-600" />
-          <span className="text-sm font-semibold text-red-600">Административная панель</span>
+          <div className="flex items-center space-x-2 rounded-lg bg-gradient-to-r from-red-50 to-pink-50 px-4 py-2 border border-red-100">
+            <Shield className="h-4 w-4 text-red-600" />
+            <span className="text-sm font-semibold text-red-600">Административная панель</span>
         </div>
 
         {/* Действия */}

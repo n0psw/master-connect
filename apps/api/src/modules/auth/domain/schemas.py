@@ -24,7 +24,7 @@ class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Имя пользователя")
     role: UserRole = Field(..., description="Роль пользователя")
     phone: Optional[str] = Field(None, max_length=50, description="Телефон")
-    timezone: str = Field("UTC", description="Часовой пояс")
+    timezone: str = Field("Asia/Almaty", description="Часовой пояс")
     locale: str = Field("ru", description="Язык интерфейса")
     
     @validator("password")

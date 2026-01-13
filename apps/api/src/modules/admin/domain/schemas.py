@@ -95,6 +95,8 @@ class CreateMentorRequest(BaseModel):
     password: str = Field(..., min_length=8, description="Пароль")
     name: str = Field(..., min_length=2, max_length=255, description="Имя")
     phone: Optional[str] = Field(None, description="Телефон")
+    timezone: str = Field(default="Asia/Almaty", description="Часовой пояс")
+    locale: str = Field(default="ru", description="Локаль")
     bio: Optional[str] = Field(None, description="Биография")
     headline: Optional[str] = Field(None, max_length=255, description="Заголовок профиля")
     price_30: Optional[Decimal] = Field(None, ge=0, description="Цена за 30 минут")

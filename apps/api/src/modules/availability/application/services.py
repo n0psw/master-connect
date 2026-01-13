@@ -859,7 +859,9 @@ class AvailabilityService:
                         BookingStatus.AWAITING_VERIFICATION,
                         BookingStatus.AWAITING_VERIFICATION.value,
                         BookingStatus.CONFIRMED,
-                        BookingStatus.CONFIRMED.value
+                        BookingStatus.CONFIRMED.value,
+                        BookingStatus.COMPLETED,
+                        BookingStatus.COMPLETED.value
                     ]),
                     and_(
                         or_(

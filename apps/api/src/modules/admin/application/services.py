@@ -654,6 +654,8 @@ class UserManagementService:
                 name=mentor_data.name,
                 role=UserRole.MENTOR,
                 phone=mentor_data.phone,
+                timezone=mentor_data.timezone,
+                locale=mentor_data.locale,
                 is_active=True
             )
             self.db.add(user)
