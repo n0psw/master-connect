@@ -1,15 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { ArrowRight, Sparkles, ShieldCheck, GraduationCap, CalendarClock, Quote, Play, CheckCircle2, ArrowUpRight } from 'lucide-react'
+import { ArrowRight, Sparkles, Quote, Play, CheckCircle2, ArrowUpRight } from 'lucide-react'
 
 import { Button } from '@/shared/ui/button'
-import { Card, CardContent } from '@/shared/ui/card'
-
-const heroStats = [
-  { label: 'Студентов поступили', value: '2 000+', icon: Sparkles },
-  { label: 'Проверенных наставников', value: '500+', icon: ShieldCheck },
-  { label: 'Средний рейтинг', value: '4.9/5', icon: GraduationCap }
-]
 
 const universities = ['Harvard', 'Oxford', 'MIT', 'NYU', 'Cambridge', 'ETH Zürich']
 
@@ -142,40 +135,6 @@ export const HomePage = () => {
                   </Button>
                   <Button variant="outline" size="lg" className="h-14 px-8 text-base border-[rgba(16,24,40,0.12)]" asChild>
                     <Link to="/about">Бесплатная консультация</Link>
-                  </Button>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  {heroStats.map((item) => (
-                    <Card key={item.label} className="border-none bg-white/70 backdrop-blur shadow-[0_18px_45px_-30px_rgba(28,63,227,0.6)]">
-                      <CardContent className="p-5 flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-sm text-[#475467]">
-                          <item.icon className="h-4 w-4 text-primary" />
-                          {item.label}
-                        </div>
-                        <div className="text-2xl font-bold text-[#101828]">{item.value}</div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-              <div className="relative">
-                <div className="absolute inset-0 rounded-[32px] bg-gradient-to-tr from-[#1c3fe3]/25 via-[#7a5cff]/20 to-transparent blur-3xl" />
-                <div className="relative rounded-[32px] bg-white shadow-[0_40px_80px_-40px_rgba(28,63,227,0.45)] p-8 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold uppercase tracking-wide text-[#475467]">Трекинг поступления</div>
-                    <CalendarClock className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="space-y-4">
-                    {timeline.slice(0, 3).map((step) => (
-                      <div key={step.title} className="rounded-2xl border border-[rgba(28,63,227,0.12)] bg-[rgba(28,63,227,0.04)] px-5 py-4">
-                        <div className="text-xs font-semibold text-primary uppercase tracking-wide">{step.order}</div>
-                        <div className="mt-2 text-base font-semibold text-[#101828]">{step.title}</div>
-                        <p className="text-sm text-[#475467]">{step.copy}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <Button variant="gradient" className="w-full h-12" asChild>
-                    <Link to="/register">Присоединиться</Link>
                   </Button>
                 </div>
               </div>
