@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Instagram } from 'lucide-react'
 
 export const PublicFooter = () => {
   return (
@@ -13,6 +14,17 @@ export const PublicFooter = () => {
           <span className="font-medium">MasterConnect</span>
         </div>
         <div className="flex items-center gap-4">
+          <a
+            href="https://www.instagram.com/master.education/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 hover:text-primary transition-colors"
+            aria-label="Instagram"
+          >
+            <Instagram className="h-5 w-5" />
+            <span className="hidden sm:inline">Instagram</span>
+          </a>
+          <span className="hidden h-1 w-1 rounded-full bg-muted md:inline-block" />
           <span>© {new Date().getFullYear()}</span>
           <span className="hidden h-1 w-1 rounded-full bg-muted md:inline-block" />
           <Link to="/about" className="hover:text-primary transition-colors">

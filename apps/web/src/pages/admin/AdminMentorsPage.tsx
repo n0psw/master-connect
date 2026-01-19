@@ -707,6 +707,7 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
     avatar_url: '',
     send_welcome_email: true
   })
+  const [languagesInput, setLanguagesInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -732,6 +733,11 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
     setIsLoading(true)
 
     try {
+      const languagesArray = languagesInput
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+      
       const dataToSend = {
         email: formData.email,
         password: formData.password,
@@ -743,7 +749,7 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
         price_45: formData.price_45 ?? null,
         price_60: formData.price_60 ?? null,
         avatar_url: formData.avatar_url || null,
-        languages: formData.languages || [],
+        languages: languagesArray,
         send_welcome_email: formData.send_welcome_email
       }
       
@@ -764,6 +770,7 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
         avatar_url: '',
         send_welcome_email: true
       })
+      setLanguagesInput('')
     } catch (error: any) {
       const errorDetail = error?.detail || error?.response?.data?.detail || 'Ошибка при создании ментора'
       toast.error(errorDetail)
@@ -875,11 +882,8 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
           <div>
             <label className="block text-sm font-medium mb-1">Языки (через запятую)</label>
             <Input
-              value={formData.languages?.join(', ') || ''}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                languages: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
-              })}
+              value={languagesInput}
+              onChange={(e) => setLanguagesInput(e.target.value)}
               placeholder="Русский, Английский, Казахский"
             />
           </div>

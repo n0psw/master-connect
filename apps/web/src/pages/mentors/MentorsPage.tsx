@@ -137,27 +137,43 @@ export const MentorsPage = () => {
   return (
     <div className="relative left-[-24px] w-[calc(100%+48px)] lg:left-[-24px] lg:w-[calc(100%+48px)] -mb-6">
       <Helmet>
-        <title>Каталог наставников — MasterConnect</title>
+        <title>Каталог консультантов — MasterConnect</title>
         <meta
           name="description"
-          content="Подберите наставника по университету, направлению и языку. Гибкие фильтры, рейтинг и проверенные отзывы."
+          content="Выберите консультанта по поступлению из проверенных экспертов. Мы давно работаем в сфере IELTS и SAT подготовки в Казахстане. Одноразовые консультации с реальным опытом."
         />
       </Helmet>
 
-      <div className="bg-[rgba(28,63,227,0.05)] pb-12 lg:pb-16">
-        <div className="border-b border-[rgba(28,63,227,0.08)] bg-white/80 backdrop-blur">
-          <div className="container-wide px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="space-y-2.5">
-                
-                <div className="space-y-3">
-                  <h1 className="text-3xl sm:text-4xl font-bold text-[#101828]">Каталог наставников</h1>
-                  <p className="text-base sm:text-lg text-[#475467] max-w-3xl">
-                    Используйте фильтры по направлению, бюджету и языку, чтобы найти наставника, который поможет подготовить документы, эссе и пройти собеседование.
-                  </p>
-                </div>
+      <div className="fixed inset-0 pointer-events-none z-0 hidden sm:block">
+        <div className="absolute top-20 right-10 w-96 h-96 bg-gradient-to-br from-blue-400/15 to-cyan-400/15 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 left-20 w-80 h-80 bg-gradient-to-br from-indigo-400/12 to-purple-400/12 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-1/4 w-72 h-72 bg-gradient-to-br from-violet-400/10 to-fuchsia-400/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-br from-cyan-400/10 to-blue-400/10 rounded-full blur-2xl" />
+      </div>
+
+      <div className="bg-white pb-8 sm:pb-12 lg:pb-16 relative">
+        <div className="border-b border-gray-100 bg-white">
+          <div className="container-wide px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4 sm:space-y-6">
+            <div className="max-w-4xl space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">Каталог консультантов</h1>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-6 space-y-2 sm:space-y-3">
+                <h2 className="text-lg font-semibold text-gray-900">О платформе</h2>
+                <p className="text-gray-600">
+                  Мы давно работаем в сфере IELTS и SAT подготовки в Казахстане. Наш опыт в образовательной сфере помогает нам подбирать проверенных консультантов с реальным опытом поступления.
+                </p>
+                <p className="text-gray-600">
+                  Наши консультанты проводят одноразовые консультации по поступлению, помогая студентам получить конкретные ответы на вопросы и составить четкий план действий. Каждый консультант проходит проверку образования, достижений и опыта.
+                </p>
+                <p className="text-gray-600">
+                  Вы можете доверять подбору консультантов на нашей платформе — мы проверяем каждого эксперта и гарантируем качество консультаций.
+                </p>
               </div>
             </div>
+            
+            <div className="space-y-3">
+              <p className="text-base text-gray-600">
+                Используйте фильтры по направлению, бюджету и языку, чтобы найти консультанта, который поможет с поступлением.
+              </p>
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row gap-4">
@@ -171,19 +187,19 @@ export const MentorsPage = () => {
                         handleSearch(e.currentTarget.value)
                       }
                     }}
-                    className="h-14 rounded-full border-none bg-white pl-12 text-base shadow-[0_14px_40px_-30px_rgba(16,24,40,0.6)]"
+                    className="h-14 rounded-full border border-gray-200 bg-white pl-12 text-base"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="hidden lg:flex items-center gap-2 rounded-full border border-[rgba(16,24,40,0.1)] bg-white px-2 py-2">
+                  <div className="hidden lg:flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2 py-2">
                     {segments.map((segment) => (
                       <button
                         key={segment.value}
                         onClick={() => updateSearchParams({ sort: segment.value })}
                         className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
                           currentSegment.value === segment.value
-                            ? 'bg-gradient-to-r from-[#1c3fe3] to-[#7a5cff] text-white shadow-[0_10px_30px_-20px_rgba(28,63,227,0.7)]'
-                            : 'text-[#475467] hover:bg-[rgba(28,63,227,0.08)]'
+                            ? 'bg-primary text-white'
+                            : 'text-gray-600 hover:bg-gray-100'
                         }`}
                       >
                         {segment.label}
@@ -192,7 +208,7 @@ export const MentorsPage = () => {
                   </div>
                   <Button
                     variant="outline"
-                    className="h-12 rounded-full border-[rgba(16,24,40,0.12)] px-5"
+                    className="h-12 rounded-full border-gray-200 px-5"
                     onClick={() => setShowFilters(true)}
                   >
                     <SlidersHorizontal className="h-4 w-4" />
@@ -214,7 +230,7 @@ export const MentorsPage = () => {
                         handleFilterChange(chip.key, undefined)
                       }
                     }}
-                    className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm text-[#475467] shadow-sm border border-[rgba(16,24,40,0.08)]"
+                    className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm text-gray-600 border border-gray-200"
                   >
                     {chip.label}
                     <X className="h-3 w-3" />
@@ -226,6 +242,7 @@ export const MentorsPage = () => {
                   </button>
                 )}
               </div>
+            </div>
             </div>
           </div>
         </div>
@@ -245,7 +262,7 @@ export const MentorsPage = () => {
             </aside>
 
             <div className="space-y-10">
-              <div className="rounded-[24px] border border-[rgba(16,24,40,0.08)] bg-white px-6 py-5 shadow-[0_20px_60px_-48px_rgba(16,24,40,0.5)] flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
                   <Users className="h-6 w-6 text-primary" />
                   <div>
@@ -374,7 +391,7 @@ export const MentorsPage = () => {
                 </>
               )}
 
-              <div className="rounded-[28px] border border-[rgba(16,24,40,0.1)] bg-white px-8 py-10 shadow-[0_30px_80px_-60px_rgba(16,24,40,0.45)]">
+              <div className="rounded-xl border border-gray-200 bg-white px-8 py-10">
                 <div className="flex items-center gap-3 text-primary font-semibold text-sm uppercase tracking-[0.3em]">
                   <HelpCircle className="h-4 w-4" />
                   FAQ

@@ -697,13 +697,13 @@ class UserManagementService:
                 }
             )
             
-            logger.info("Mentor created successfully", user_id=user.id, mentor_id=mentor_profile.id)
+            logger.info("Mentor created successfully", user_id=user.id, mentor_id=mentor_profile.user_id)
             
             # TODO: Отправить приветственное письмо если mentor_data.send_welcome_email
             
             return CreateMentorResponse(
                 user_id=user.id,
-                mentor_id=mentor_profile.id,
+                mentor_id=mentor_profile.user_id,
                 email=user.email,
                 name=user.name,
                 message="Ментор успешно создан"
