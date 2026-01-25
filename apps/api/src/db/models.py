@@ -15,6 +15,7 @@ from modules.availability.domain.models import AvailabilityRule, TimeOff, Mentor
 
 # Бронирования и сопряженные сущности
 from modules.bookings.domain.models import Booking  # noqa: F401
+from modules.bookings.domain.models import BookingRequest  # noqa: F401
 from modules.reviews.domain.models import Review  # noqa: F401
 from modules.chat.domain.models import Dialog, Message  # noqa: F401
 from modules.payments.domain.models import PaymentEvidence  # noqa: F401

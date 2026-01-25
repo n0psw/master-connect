@@ -24,8 +24,10 @@ import {
   BookOpen,
   Languages,
   Edit,
+  Edit2,
   X,
   Send,
+  Save,
   Video,
   ExternalLink,
 } from 'lucide-react'
@@ -39,7 +41,7 @@ import { ReviewForm } from '@/shared/components/ReviewForm'
 import { bookingsApi } from '@/shared/api/bookings'
 import { useAuthStore } from '@/shared/store/auth'
 import { BookingStatusLabels, BookingStatusColors } from '@/shared/types/bookings'
-import type { BookingDetail, Booking } from '@/shared/types/bookings'
+import type { BookingDetail, Booking, BookingRequest } from '@/shared/types/bookings'
 
 // Компонент статусного бейджа
 interface StatusBadgeProps {
@@ -88,14 +90,21 @@ const StatusBadge = ({ status, size = 'md' }: StatusBadgeProps) => {
 interface BookingActionsProps {
   booking: Booking
   userRole: 'student' | 'mentor' | 'admin'
+  canCancel?: boolean
+  canReschedule?: boolean
+  activeRequest?: BookingRequest
+  onApproveRequest?: (data?: { newStartsAt?: string }) => void
+  onRejectRequest?: () => void
 }
 
-const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
+const BookingActions = ({ booking, userRole, canCancel, canReschedule, activeRequest, onApproveRequest, onRejectRequest }: BookingActionsProps) => {
   const [showReschedule, setShowReschedule] = useState(false)
   const [showCancel, setShowCancel] = useState(false)
   const [showReview, setShowReview] = useState(false)
+  const [showMeetLinkEdit, setShowMeetLinkEdit] = useState(false)
   const [newDateTime, setNewDateTime] = useState('')
   const [cancelReason, setCancelReason] = useState('')
+  const [meetLinkInput, setMeetLinkInput] = useState((booking as any).google_meet_link || '')
   
   const queryClient = useQueryClient()
 
@@ -115,11 +124,20 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
   })
 
   const cancelMutation = useMutation(
-    (data: { reason: string }) => bookingsApi.cancelBooking(booking.id, data),
+    async (data: { reason: string }) => {
+      if (userRole === 'student') {
+        return bookingsApi.createBookingRequest(booking.id, {
+          type: 'CANCEL',
+          reason: data.reason,
+        })
+      }
+      return bookingsApi.cancelBooking(booking.id, data)
+    },
     {
       onSuccess: () => {
         queryClient.invalidateQueries(['booking', booking.id])
-        toast.success('Бронирование отменено')
+        queryClient.invalidateQueries(['my-bookings'])
+        toast.success(userRole === 'student' ? 'Запрос отправлен на модерацию' : 'Бронирование отменено')
         setShowCancel(false)
       },
       onError: (error: any) => {
@@ -129,11 +147,20 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
   )
 
   const rescheduleMutation = useMutation(
-    (data: { new_starts_at: string }) => bookingsApi.rescheduleBooking(booking.id, data),
+    async (data: { new_starts_at: string }) => {
+      if (userRole === 'student') {
+        return bookingsApi.createBookingRequest(booking.id, {
+          type: 'RESCHEDULE',
+          desired_starts_at: data.new_starts_at,
+        })
+      }
+      return bookingsApi.rescheduleBooking(booking.id, data)
+    },
     {
       onSuccess: () => {
         queryClient.invalidateQueries(['booking', booking.id])
-        toast.success('Запрос на перенос отправлен')
+        queryClient.invalidateQueries(['my-bookings'])
+        toast.success(userRole === 'student' ? 'Запрос на перенос отправлен' : 'Бронирование перенесено')
         setShowReschedule(false)
       },
       onError: (error: any) => {
@@ -170,16 +197,60 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
     }
   )
 
+  const setMeetLinkMutation = useMutation(
+    ({ bookingId, meetLink }: { bookingId: string; meetLink: string }) => 
+      bookingsApi.setMeetLink(bookingId, meetLink),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['booking', booking.id])
+        toast.success('Ссылка на Google Meet сохранена')
+        setShowMeetLinkEdit(false)
+      },
+      onError: (error: any) => {
+        toast.error('Ошибка: ' + (error?.detail || error?.message))
+      }
+    }
+  )
+
+  // Модерация запроса (админ/ментор)
+  const decideRequestMutation = useMutation(
+    ({ id, action, new_starts_at, admin_comment }: { id: string; action: 'APPROVED' | 'REJECTED'; new_starts_at?: string; admin_comment?: string }) =>
+      bookingsApi.decideBookingRequest(id, {
+        action,
+        new_starts_at,
+        admin_comment,
+      }),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['booking', booking.id])
+        toast.success('Решение по запросу сохранено')
+      },
+      onError: (error: any) => {
+        toast.error(error?.detail || 'Ошибка при обработке запроса')
+      },
+    }
+  )
+
   const tz = getClientTimezone()
   const now = dayjsTz(undefined, tz)
   const scheduledTime = dayjsTz((booking as any).starts_at, tz)
   const isPast = scheduledTime.isBefore(now)
   const isUpcoming = scheduledTime.isAfter(now)
-  const canCancel = ['HOLD', 'AWAITING_VERIFICATION', 'CONFIRMED'].includes(booking.status) && isUpcoming
-  const canReschedule = ['CONFIRMED'].includes(booking.status) && isUpcoming
+  const hasPendingRequest = activeRequest?.status === 'PENDING'
+  const canModerateRequest =
+    hasPendingRequest &&
+    ((activeRequest?.type === 'CANCEL' && userRole === 'admin') ||
+      (activeRequest?.type === 'RESCHEDULE' && (userRole === 'admin' || userRole === 'mentor')))
+
+  // базовые возможности из статуса/времени, но приоритет у значений с бэкенда
+  const baseCanCancel = ['HOLD', 'AWAITING_VERIFICATION', 'CONFIRMED'].includes(booking.status) && isUpcoming
+  const baseCanReschedule = ['CONFIRMED'].includes(booking.status) && isUpcoming
+  const allowCancel = (typeof canCancel === 'boolean' ? canCancel : baseCanCancel) && !hasPendingRequest
+  const allowReschedule = (typeof canReschedule === 'boolean' ? canReschedule : baseCanReschedule) && !hasPendingRequest
   const canPayment = booking.status === 'HOLD' && userRole === 'student'
   const canReview = booking.status === 'COMPLETED' && userRole === 'student' && !booking.has_review
   const canMarkCompleted = booking.status === 'CONFIRMED' && (userRole === 'mentor' || userRole === 'admin')
+  const canEditMeetLink = booking.status === 'CONFIRMED' && userRole === 'mentor'
 
   const chatBasePath =
     userRole === 'mentor' ? '/mentor/chat' : userRole === 'student' ? '/student/chat' : '/admin/chat'
@@ -209,11 +280,73 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
       toast.error('Выберите новые дату и время')
       return
     }
-    rescheduleMutation.mutate({ new_starts_at: newDateTime })
+    // Приводим локальное значение datetime-local к ISO с таймзоной клиента
+    const isoWithTz = dayjsTz(newDateTime, tz).toISOString()
+    rescheduleMutation.mutate({ new_starts_at: isoWithTz })
+  }
+
+  const handleSaveMeetLink = () => {
+    if (!meetLinkInput.trim()) {
+      toast.error('Введите ссылку на Google Meet')
+      return
+    }
+    if (!meetLinkInput.startsWith('https://meet.google.com/')) {
+      toast.error('Ссылка должна начинаться с https://meet.google.com/')
+      return
+    }
+    setMeetLinkMutation.mutate({ bookingId: booking.id, meetLink: meetLinkInput.trim() })
   }
 
   return (
     <div className="space-y-4">
+      {hasPendingRequest && (
+        <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">
+          <AlertTriangle className="h-4 w-4 mt-0.5" />
+          <div className="space-y-1 text-sm">
+            <p className="font-medium">Есть активный запрос на {activeRequest?.type === 'CANCEL' ? 'отмену' : 'перенос'}.</p>
+            <p className="text-amber-800">
+              {userRole === 'student'
+                ? 'Администратор проверяет запрос. Новые запросы отправить нельзя, пока текущий не обработан.'
+                : 'Примите решение по запросу.'}
+            </p>
+            {canModerateRequest && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    activeRequest?.id
+                      ? decideRequestMutation.mutate({
+                          id: activeRequest.id,
+                          action: 'APPROVED',
+                          new_starts_at: activeRequest?.desired_starts_at,
+                        })
+                      : toast.error('ID запроса не найден')
+                  }
+                  disabled={decideRequestMutation.isLoading}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Одобрить
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const comment = window.prompt('Причина отказа?') || undefined
+                    activeRequest?.id
+                      ? decideRequestMutation.mutate({ id: activeRequest.id, action: 'REJECTED', admin_comment: comment })
+                      : toast.error('ID запроса не найден')
+                  }}
+                  disabled={decideRequestMutation.isLoading}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Отклонить
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Основные действия */}
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">
@@ -234,21 +367,23 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
           </Button>
         )}
 
-        {canReschedule && (
+        {allowReschedule && (
           <Button
             variant="outline"
             onClick={() => setShowReschedule(true)}
+            disabled={userRole === 'student' && hasPendingRequest}
           >
             <CalendarDays className="h-4 w-4 mr-2" />
             Перенести
           </Button>
         )}
 
-        {canCancel && (
+        {allowCancel && (
           <Button
             variant="outline"
             onClick={() => setShowCancel(true)}
             className="text-red-600 border-red-200 hover:bg-red-50"
+            disabled={userRole === 'student' && hasPendingRequest}
           >
             <XCircle className="h-4 w-4 mr-2" />
             Отменить
@@ -281,7 +416,72 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
             }
           </Button>
         )}
+
+        {canEditMeetLink && (
+          <Button
+            variant="outline"
+            onClick={() => setShowMeetLinkEdit(true)}
+            className="text-green-600 border-green-200 hover:bg-green-50"
+          >
+            <Video className="h-4 w-4 mr-2" />
+            {(booking as any).google_meet_link ? 'Изменить ссылку Meet' : 'Добавить ссылку Meet'}
+          </Button>
+        )}
       </div>
+
+      {/* Форма редактирования Meet ссылки */}
+      {showMeetLinkEdit && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Video className="h-5 w-5 mr-2 text-green-600" />
+                Google Meet ссылка
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMeetLinkEdit(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Ссылка на Google Meet
+              </label>
+              <Input
+                type="url"
+                placeholder="https://meet.google.com/xxx-xxxx-xxx"
+                value={meetLinkInput}
+                onChange={(e) => setMeetLinkInput(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Создайте встречу в Google Meet и вставьте ссылку сюда
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSaveMeetLink}
+                disabled={setMeetLinkMutation.isLoading}
+                size="sm"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {setMeetLinkMutation.isLoading ? 'Сохранение...' : 'Сохранить'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMeetLinkEdit(false)}
+              >
+                Отмена
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Форма переноса */}
       {showReschedule && (
@@ -313,7 +513,7 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
             <div className="flex gap-2">
               <Button
                 onClick={handleReschedule}
-                disabled={rescheduleMutation.isLoading}
+                disabled={rescheduleMutation.isLoading || (userRole === 'student' && hasPendingRequest)}
                 size="sm"
               >
                 <Send className="h-4 w-4 mr-2" />
@@ -361,7 +561,7 @@ const BookingActions = ({ booking, userRole }: BookingActionsProps) => {
             <div className="flex gap-2">
               <Button
                 onClick={handleCancel}
-                disabled={cancelMutation.isLoading}
+                disabled={cancelMutation.isLoading || (userRole === 'student' && hasPendingRequest)}
                 variant="destructive"
                 size="sm"
               >
@@ -454,6 +654,12 @@ export const BookingDetailPage = () => {
   const googleMeetLink = (bookingData as any).google_meet_link
   const studentName = (bookingData as any).student_name ?? 'Студент'
   const mentorName = (bookingData as any).mentor_name ?? 'Ментор'
+  const activeRequest = booking.active_request
+  const hasPendingRequest = activeRequest?.status === 'PENDING'
+  const canModerateRequest =
+    hasPendingRequest &&
+    ((activeRequest?.type === 'CANCEL' && userRole === 'admin') ||
+      (activeRequest?.type === 'RESCHEDULE' && (userRole === 'admin' || userRole === 'mentor')))
 
   const formatPrice = (amount: number) => {
     return amount.toLocaleString('ru-RU') + ' ₸'
@@ -669,7 +875,23 @@ export const BookingDetailPage = () => {
                 <CardTitle>Действия</CardTitle>
               </CardHeader>
               <CardContent>
-                <BookingActions booking={bookingData} userRole={userRole} />
+                <BookingActions
+                  booking={bookingData}
+                  userRole={userRole}
+                  canCancel={booking.can_cancel}
+                  canReschedule={booking.can_reschedule}
+                  activeRequest={booking.active_request}
+                  onApproveRequest={() =>
+                    decideRequestMutation.mutate({
+                      action: 'APPROVED',
+                      new_starts_at: booking.active_request?.desired_starts_at,
+                    })
+                  }
+                  onRejectRequest={() => {
+                    const comment = window.prompt('Причина отказа?') || undefined
+                    decideRequestMutation.mutate({ action: 'REJECTED', admin_comment: comment })
+                  }}
+                />
               </CardContent>
             </Card>
 

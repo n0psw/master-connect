@@ -32,6 +32,7 @@ import { PaymentEvidenceViewer } from '@/shared/components/PaymentEvidenceViewer
 import { adminApi } from '@/shared/api/admin'
 import { bookingsApi } from '@/shared/api/bookings'
 import { BookingStatusLabels, BookingStatusColors } from '@/shared/types/bookings'
+import type { BookingRequest } from '@/shared/types/bookings'
 import type { AdminBooking, AdminBookingSearchParams, AdminBookingAction } from '@/shared/types/admin'
 
 // Безопасные геттеры для разных форматов API
@@ -319,6 +320,33 @@ export const AdminBookingsPage = () => {
       )
     : 1
 
+  // Запросы на отмену/перенос (админ)
+  const { data: bookingRequests, isLoading: requestsLoading } = useQuery(
+    ['booking-requests'],
+    () => bookingsApi.listBookingRequests({ status: 'PENDING' }),
+    { staleTime: 30_000 }
+  )
+
+  const decideRequestMutation = useMutation(
+    ({ id, action, newStartsAt, comment }: { id: string; action: 'APPROVED' | 'REJECTED'; newStartsAt?: string; comment?: string }) =>
+      bookingsApi.decideBookingRequest(id, {
+        action,
+        new_starts_at: newStartsAt,
+        admin_comment: comment
+      }),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['booking-requests'])
+        queryClient.invalidateQueries(['admin-bookings'])
+        queryClient.invalidateQueries(['booking'])
+        toast.success('Решение по запросу сохранено')
+      },
+      onError: (error: any) => {
+        toast.error(error?.detail || 'Ошибка при обработке запроса')
+      }
+    }
+  )
+
   // Мутация для выполнения действий
   const bookingActionMutation = useMutation(adminApi.performBookingAction, {
     onSuccess: () => {
@@ -444,6 +472,69 @@ const formatDateTime = (dateString: string) => formatDateTimeTz(dateString, tz, 
             onFilterChange={updateFilters}
           />
         </div>
+
+        {/* Запросы на отмену/перенос */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Запросы студентов (отмена — админ, перенос — админ/ментор)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {requestsLoading ? (
+              <p className="text-sm text-muted-foreground">Загрузка...</p>
+            ) : (bookingRequests?.length || 0) === 0 ? (
+              <p className="text-sm text-muted-foreground">Новых запросов нет</p>
+            ) : (
+              bookingRequests!.map((req: BookingRequest) => (
+                <div key={req.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border rounded-lg p-3">
+                  <div className="space-y-1">
+                    <div className="font-medium">
+                      {req.type === 'CANCEL' ? 'Отмена' : 'Перенос'} • Бронь {String(req.booking_id).slice(0, 8)}
+                    </div>
+                    {req.desired_starts_at && (
+                      <div className="text-sm text-muted-foreground">
+                        Новое время: {dayjsTz(req.desired_starts_at, tz).format('DD.MM.YYYY HH:mm')}
+                      </div>
+                    )}
+                    {req.student_reason && (
+                      <div className="text-sm text-muted-foreground">Комментарий: {req.student_reason}</div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        decideRequestMutation.mutate({
+                          id: req.id,
+                          action: 'APPROVED',
+                          newStartsAt: req.desired_starts_at || undefined
+                        })
+                      }
+                      disabled={decideRequestMutation.isLoading}
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Одобрить
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const comment = window.prompt('Причина отказа?') || undefined
+                        decideRequestMutation.mutate({ id: req.id, action: 'REJECTED', comment })
+                      }}
+                      disabled={decideRequestMutation.isLoading}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Отклонить
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
 
         {/* Статистика */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">

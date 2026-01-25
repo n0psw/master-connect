@@ -59,6 +59,25 @@ export interface BookingDetail {
   can_mark_payment: boolean
   cancellation_deadline?: string
   reschedule_deadline?: string
+  active_request?: BookingRequest
+}
+
+export type BookingRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+export type BookingRequestType = 'CANCEL' | 'RESCHEDULE'
+
+export interface BookingRequest {
+  id: string
+  booking_id: string
+  requested_by: string
+  type: BookingRequestType
+  status: BookingRequestStatus
+  desired_starts_at?: string | null
+  desired_ends_at?: string | null
+  student_reason?: string | null
+  admin_comment?: string | null
+  decided_by?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface BookingListResponse {

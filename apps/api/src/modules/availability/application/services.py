@@ -40,6 +40,21 @@ _calendar_cache = {}
 _cache_ttl = {}
 
 
+def _invalidate_calendar_cache(mentor_id: UUID) -> None:
+    """Сбрасываем кэш календаря для конкретного ментора."""
+    global _calendar_cache, _cache_ttl
+    keys_to_remove = [k for k in _calendar_cache.keys() if str(mentor_id) in k]
+    for key in keys_to_remove:
+        _calendar_cache.pop(key, None)
+        _cache_ttl.pop(key, None)
+    if keys_to_remove:
+        logger.info(
+            "Cache invalidated for mentor",
+            mentor_id=mentor_id,
+            keys_removed=len(keys_to_remove)
+        )
+
+
 def _get_calendar_cache_key(mentor_id: UUID, date_from: date, date_to: date, duration_minutes: Optional[int], timezone_str: str) -> str:
     """Генерация ключа кэша для календаря."""
     return f"calendar:{mentor_id}:{date_from}:{date_to}:{duration_minutes}:{timezone_str}"
@@ -167,19 +182,7 @@ class AvailabilityService:
                 settings.advance_booking_days = settings_update.advance_booking_days
 
         await self.db.commit()
-        
-        # Очищаем кэш календаря для этого ментора
-        global _calendar_cache, _cache_ttl
-        keys_to_remove = [k for k in _calendar_cache.keys() if str(mentor_id) in k]
-        for key in keys_to_remove:
-            _calendar_cache.pop(key, None)
-            _cache_ttl.pop(key, None)
-        
-        logger.info(
-            "Cache invalidated for mentor after settings update",
-            mentor_id=mentor_id,
-            keys_removed=len(keys_to_remove)
-        )
+        _invalidate_calendar_cache(mentor_id)
         
         settings_query = select(
             MentorSettings.mentor_id,
@@ -306,6 +309,7 @@ class AvailabilityService:
             mentor_id=mentor_id,
             rules_created=len(rules)
         )
+        _invalidate_calendar_cache(mentor_id)
 
         return self._rules_to_simple_weekly_schedule(rules)
     
@@ -339,6 +343,7 @@ class AvailabilityService:
         
         self.db.add(rule)
         await self.db.commit()
+        _invalidate_calendar_cache(mentor_id)
         
         logger.info(
             "Availability rule created",
@@ -383,6 +388,7 @@ class AvailabilityService:
         
         rule.updated_at = datetime.now(timezone.utc)
         await self.db.commit()
+        _invalidate_calendar_cache(rule.mentor_id)
         
         logger.info("Availability rule updated", rule_id=rule_id, mentor_id=rule.mentor_id)
         
@@ -394,6 +400,7 @@ class AvailabilityService:
         
         await self.db.delete(rule)
         await self.db.commit()
+        _invalidate_calendar_cache(rule.mentor_id)
         
         logger.info("Availability rule deleted", rule_id=rule_id, mentor_id=rule.mentor_id)
         return True
@@ -437,6 +444,7 @@ class AvailabilityService:
             created_rules.append(rule)
         
         await self.db.commit()
+        _invalidate_calendar_cache(mentor_id)
         
         logger.info(
             "Bulk availability update completed",
@@ -467,6 +475,7 @@ class AvailabilityService:
         
         self.db.add(time_off)
         await self.db.commit()
+        _invalidate_calendar_cache(mentor_id)
         
         logger.info(
             "Time off created",
@@ -496,6 +505,7 @@ class AvailabilityService:
         
         time_off.updated_at = datetime.now(timezone.utc)
         await self.db.commit()
+        _invalidate_calendar_cache(time_off.mentor_id)
         
         logger.info("Time off updated", time_off_id=time_off_id, mentor_id=time_off.mentor_id)
         
@@ -507,6 +517,7 @@ class AvailabilityService:
         
         await self.db.delete(time_off)
         await self.db.commit()
+        _invalidate_calendar_cache(time_off.mentor_id)
         
         logger.info("Time off deleted", time_off_id=time_off_id, mentor_id=time_off.mentor_id)
         return True
@@ -688,8 +699,8 @@ class AvailabilityService:
         date_to: date,
         duration_filter: Optional[int],
         timezone_str: str,
-        mentor: Optional[Mentor] = None
-    ) -> List[TimeSlot]:
+            mentor: Optional[Mentor] = None
+        ) -> List[TimeSlot]:
         """Генерация временных слотов на основе правил доступности."""
         slots = []
         # Обработка невалидного timezone с fallback на UTC
@@ -734,7 +745,7 @@ class AvailabilityService:
                         booked_slots=booked_slots,
                         timezone=tz,
                         mentor=mentor,
-                        requested_duration=duration_filter or 30
+                        requested_duration=duration_filter
                     )
                     slots.extend(day_slots)
             

@@ -32,6 +32,11 @@ from modules.bookings.domain.schemas import (
     BookingRescheduleRequest,
     BookingResponse,
     BookingStats,
+    MeetLinkUpdate,
+    BookingRequestCreate,
+    BookingRequestResponse,
+    BookingRequestDecision,
+    BookingRequestStatus,
 )
 from modules.users.domain.models import User, UserRole
 
@@ -154,6 +159,37 @@ async def mark_payment(
     
     except Exception as e:
         logger.error("Error marking payment", booking_id=booking_id, student_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
+
+
+@router.post(
+    "/{booking_id}/request",
+    response_model=BookingRequestResponse,
+    summary="Отправить запрос на отмену или перенос",
+    description="Студент отправляет запрос, админ утверждает",
+)
+async def create_booking_request(
+    booking_id: UUID,
+    request_data: BookingRequestCreate,
+    current_user: User = Depends(get_current_student),
+    booking_service: BookingService = Depends(get_booking_service)
+) -> BookingRequestResponse:
+    try:
+        return await booking_service.create_booking_request(
+            booking_id=booking_id,
+            user_id=current_user.id,
+            user_role=current_user.role,
+            request_data=request_data
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))
+    except (BusinessLogicError, PermissionDeniedError) as e:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error("Error creating booking request", booking_id=booking_id, error=str(e))
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера"
@@ -407,7 +443,63 @@ async def get_moderation_queue(
         return queue
     
     except Exception as e:
-        logger.error("Error getting moderation queue", admin_id=current_user.id, error=str(e))
+        logger.error("Error getting moderation queue", user_id=current_user_info.id, error=str(e))
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
+
+
+@router.get(
+    "/admin/requests",
+    response_model=List[BookingRequestResponse],
+    summary="Запросы на отмену/перенос",
+    description="Список запросов студентов, ожидающих решения админа",
+)
+async def list_booking_requests(
+    status: Optional[BookingRequestStatus] = Query(None),
+    current_user_info: CurrentUserInfo = Depends(get_current_user_info),
+    booking_service: BookingService = Depends(get_booking_service)
+) -> List[BookingRequestResponse]:
+    try:
+        return await booking_service.get_booking_requests(
+            actor_id=current_user_info.id,
+            actor_role=current_user_info.role,
+            status=status
+        )
+    except Exception as e:
+        logger.error("Error getting booking requests", user_id=current_user_info.id, error=str(e))
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
+
+
+@router.post(
+    "/admin/requests/{request_id}/decision",
+    response_model=BookingRequestResponse,
+    summary="Решение по запросу студента",
+    description="Админ одобряет или отклоняет запрос на отмену/перенос; может указать новую дату",
+)
+async def decide_booking_request(
+    request_id: UUID,
+    decision: BookingRequestDecision,
+    current_user_info: CurrentUserInfo = Depends(get_current_user_info),
+    booking_service: BookingService = Depends(get_booking_service)
+) -> BookingRequestResponse:
+    try:
+        return await booking_service.decide_booking_request(
+            request_id=request_id,
+            actor_id=current_user_info.id,
+            actor_role=current_user_info.role,
+            decision=decision
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error("Error deciding booking request", request_id=request_id, user_id=current_user_info.id, error=str(e))
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера"
@@ -438,12 +530,12 @@ async def confirm_payment(
     try:
         booking = await booking_service.confirm_payment_by_admin(
             booking_id=booking_id,
-            admin_id=current_user.id,
+            user_id=current_user_info.id,
             confirmation_data=confirmation_data
         )
         
         action = "confirmed" if confirmation_data.payment_confirmed else "rejected"
-        logger.info(f"Payment {action} by admin", admin_id=current_user.id, booking_id=booking_id)
+        logger.info(f"Payment {action} by admin", user_id=current_user_info.id, booking_id=booking_id)
         
         return booking
     
@@ -460,7 +552,7 @@ async def confirm_payment(
         )
     
     except Exception as e:
-        logger.error("Error confirming payment", booking_id=booking_id, admin_id=current_user.id, error=str(e))
+        logger.error("Error confirming payment", booking_id=booking_id, user_id=current_user_info.id, error=str(e))
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера"
@@ -523,7 +615,7 @@ async def get_all_bookings(
         return bookings
     
     except Exception as e:
-        logger.error("Error getting all bookings", admin_id=current_user.id, error=str(e))
+        logger.error("Error getting all bookings", user_id=current_user_info.id, error=str(e))
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера"
@@ -552,11 +644,11 @@ async def mark_booking_completed(
     try:
         booking = await booking_service.mark_booking_completed(
             booking_id=booking_id,
-            admin_id=current_user.id,
+            user_id=current_user_info.id,
             user_role=current_user.role
         )
         
-        logger.info("Booking marked as completed by admin", admin_id=current_user.id, booking_id=booking_id)
+        logger.info("Booking marked as completed by admin", user_id=current_user_info.id, booking_id=booking_id)
         return booking
     
     except NotFoundError:
@@ -572,7 +664,7 @@ async def mark_booking_completed(
         )
     
     except Exception as e:
-        logger.error("Error marking booking as completed", booking_id=booking_id, admin_id=current_user.id, error=str(e))
+        logger.error("Error marking booking as completed", booking_id=booking_id, user_id=current_user_info.id, error=str(e))
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера"
@@ -628,6 +720,56 @@ async def mark_booking_completed_by_mentor(
 
 
 @router.post(
+    "/{booking_id}/mentor/set-meet-link",
+    response_model=BookingResponse,
+    summary="Добавить Google Meet ссылку",
+    description="Добавить или обновить Google Meet ссылку для консультации (для ментора)",
+    responses={
+        200: {"description": "Ссылка добавлена"},
+        400: {"description": "Некорректные данные или нельзя добавить ссылку"},
+        401: {"description": "Требуется авторизация"},
+        403: {"description": "Недостаточно прав доступа"},
+        404: {"description": "Бронирование не найдено"},
+    }
+)
+async def set_meet_link_by_mentor(
+    booking_id: UUID,
+    data: MeetLinkUpdate,
+    current_user: User = Depends(get_current_mentor),
+    booking_service: BookingService = Depends(get_booking_service)
+) -> BookingResponse:
+    """Добавить или обновить Google Meet ссылку ментором."""
+    try:
+        booking = await booking_service.set_meet_link_by_mentor(
+            booking_id=booking_id,
+            mentor_id=current_user.id,
+            meet_link=data.meet_link
+        )
+        
+        logger.info("Meet link set by mentor", mentor_id=current_user.id, booking_id=booking_id)
+        return booking
+    
+    except NotFoundError:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="Бронирование не найдено"
+        )
+    
+    except (BusinessLogicError, PermissionDeniedError) as e:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    
+    except Exception as e:
+        logger.error("Error setting meet link by mentor", booking_id=booking_id, mentor_id=current_user.id, error=str(e))
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера"
+        )
+
+
+@router.post(
     "/{booking_id}/admin/mark-no-show",
     response_model=BookingResponse,
     summary="Отметить как неявку",
@@ -650,12 +792,12 @@ async def mark_booking_no_show(
     try:
         booking = await booking_service.mark_booking_no_show(
             booking_id=booking_id,
-            admin_id=current_user.id,
+            user_id=current_user_info.id,
             user_role=current_user.role,
             no_show_type=no_show_type
         )
         
-        logger.info("Booking marked as no show by admin", admin_id=current_user.id, booking_id=booking_id, no_show_type=no_show_type)
+        logger.info("Booking marked as no show by admin", user_id=current_user_info.id, booking_id=booking_id, no_show_type=no_show_type)
         return booking
     
     except NotFoundError:
@@ -671,7 +813,7 @@ async def mark_booking_no_show(
         )
     
     except Exception as e:
-        logger.error("Error marking booking as no show", booking_id=booking_id, admin_id=current_user.id, error=str(e))
+        logger.error("Error marking booking as no show", booking_id=booking_id, user_id=current_user_info.id, error=str(e))
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера"
@@ -699,7 +841,7 @@ async def get_all_booking_stats(
         return stats
     
     except Exception as e:
-        logger.error("Error getting all booking stats", admin_id=current_user.id, error=str(e))
+        logger.error("Error getting all booking stats", user_id=current_user_info.id, error=str(e))
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера"
@@ -748,4 +890,3 @@ async def bookings_health_check(
             "admin_management"
         ]
     }
-

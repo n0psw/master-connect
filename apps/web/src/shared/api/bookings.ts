@@ -12,6 +12,7 @@ import type {
   BookingPaymentConfirmation,
   BookingModerationQueue
 } from '@/shared/types/bookings'
+import type { BookingRequest } from '@/shared/types/bookings'
 
 export const bookingsApi = {
   // Создание бронирования
@@ -68,6 +69,35 @@ export const bookingsApi = {
     return response.data
   },
 
+  // Запрос студента на отмену/перенос (с модерацией)
+  async createBookingRequest(
+    bookingId: string,
+    data: { type: 'CANCEL' | 'RESCHEDULE'; desired_starts_at?: string; reason?: string }
+  ) {
+    const payload: any = {
+      type: data.type,
+      desired_starts_at: data.desired_starts_at,
+      reason: data.reason,
+    }
+    const response = await api.post(`/bookings/${bookingId}/request`, payload)
+    return response.data
+  },
+
+  // Список запросов на отмену/перенос (админ/ментор)
+  async listBookingRequests(params: { status?: 'PENDING' | 'APPROVED' | 'REJECTED' } = {}) {
+    const response = await api.get<BookingRequest[]>(`/bookings/admin/requests`, { params })
+    return response.data
+  },
+
+  // Решение по запросу
+  async decideBookingRequest(
+    requestId: string,
+    data: { action: 'APPROVED' | 'REJECTED'; admin_comment?: string; new_starts_at?: string }
+  ) {
+    const response = await api.post<BookingRequest>(`/bookings/admin/requests/${requestId}/decision`, data)
+    return response.data
+  },
+
   // Административные функции
   async getModerationQueue(): Promise<BookingModerationQueue> {
     const response = await api.get<BookingModerationQueue>('/bookings/admin/queue')
@@ -112,6 +142,14 @@ export const bookingsApi = {
     }
     const url = `/bookings/${bookingId}/admin/mark-no-show${params.toString() ? `?${params.toString()}` : ''}`
     const response = await api.post<Booking>(url)
+    return response.data
+  },
+
+  // Установить Google Meet ссылку (ментор)
+  async setMeetLink(bookingId: string, meetLink: string): Promise<Booking> {
+    const response = await api.post<Booking>(`/bookings/${bookingId}/mentor/set-meet-link`, {
+      meet_link: meetLink
+    })
     return response.data
   }
 }

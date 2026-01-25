@@ -575,12 +575,25 @@ export const MentorAvailabilityPage = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(Object.keys(weeklySchedule) as DayOfWeek[]).map((day) => (
+              {[
+                { key: 'monday', day: 0 },
+                { key: 'tuesday', day: 1 },
+                { key: 'wednesday', day: 2 },
+                { key: 'thursday', day: 3 },
+                { key: 'friday', day: 4 },
+                { key: 'saturday', day: 5 },
+                { key: 'sunday', day: 6 },
+              ].map(({ key, day }) => (
                 <DayScheduleEditor
-                  key={day}
-                  day={day}
-                  slots={weeklySchedule[day]}
-                  onUpdate={(slots) => setWeeklySchedule({ ...weeklySchedule, [day]: slots })}
+                  key={key}
+                  day={day as DayOfWeek}
+                  slots={weeklySchedule[key as keyof WeeklySchedule]}
+                  onUpdate={(slots) =>
+                    setWeeklySchedule({
+                      ...weeklySchedule,
+                      [key]: slots,
+                    })
+                  }
                 />
               ))}
             </div>

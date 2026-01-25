@@ -3,6 +3,7 @@ Pydantic схемы для модуля бронирований.
 """
 from datetime import datetime, timezone
 from decimal import Decimal
+from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -136,6 +137,7 @@ class BookingDetail(BaseModel):
     can_mark_payment: bool = Field(..., description="Можно ли отметить оплату")
     cancellation_deadline: Optional[datetime] = Field(None, description="Крайний срок отмены")
     reschedule_deadline: Optional[datetime] = Field(None, description="Крайний срок переноса")
+    active_request: Optional["BookingRequestResponse"] = Field(None, description="Активный запрос на отмену/перенос")
 
 
 class BookingList(BaseModel):
@@ -200,6 +202,19 @@ class BookingFilters(BaseModel):
         if self.date_to and self.date_from and self.date_to < self.date_from:
             raise ValueError("Дата окончания не может быть раньше даты начала")
         return self
+
+
+class MeetLinkUpdate(BaseModel):
+    """Схема для обновления Google Meet ссылки ментором."""
+    meet_link: str = Field(..., min_length=10, max_length=500, description="Google Meet ссылка")
+    
+    @field_validator("meet_link")
+    @classmethod
+    def validate_meet_link(cls, v):
+        """Валидация Google Meet ссылки."""
+        if not v.startswith("https://meet.google.com/"):
+            raise ValueError("Ссылка должна начинаться с https://meet.google.com/")
+        return v
 
 
 class BookingRescheduleRequest(BaseModel):
@@ -303,6 +318,55 @@ class BookingAnalytics(BaseModel):
     peak_hours: Dict[int, int] = Field(..., description="Пиковые часы бронирования")
 
 
+# === Запросы на отмену/перенос ===
+class BookingRequestStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class BookingRequestType(str, Enum):
+    CANCEL = "CANCEL"
+    RESCHEDULE = "RESCHEDULE"
+
+
+class BookingRequestCreate(BaseModel):
+    """Создание запроса студентом."""
+    type: BookingRequestType = Field(..., description="Тип запроса")
+    desired_starts_at: Optional[datetime] = Field(None, description="Желаемое начало (для переноса)")
+    reason: Optional[str] = Field(None, max_length=500, description="Комментарий студента")
+
+
+class BookingRequestResponse(BaseModel):
+    """Ответ с запросом."""
+    id: UUID
+    booking_id: UUID
+    requested_by: UUID
+    type: BookingRequestType
+    status: BookingRequestStatus
+    desired_starts_at: Optional[datetime]
+    desired_ends_at: Optional[datetime]
+    student_reason: Optional[str]
+    admin_comment: Optional[str]
+    decided_by: Optional[UUID]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BookingRequestDecision(BaseModel):
+    """Решение админа по запросу."""
+    action: BookingRequestStatus = Field(..., description="APPROVED или REJECTED")
+    admin_comment: Optional[str] = Field(None, max_length=500, description="Комментарий админа")
+    new_starts_at: Optional[datetime] = Field(None, description="Новое время (когда админ меняет дату переноса)")
+
+
+# Для форвард-ссылок
+BookingDetail.model_rebuild()
+
+
 # Схемы для интеграций
 
 class WebhookPayload(BaseModel):
@@ -311,4 +375,3 @@ class WebhookPayload(BaseModel):
     booking_id: UUID = Field(..., description="ID бронирования")
     data: Dict[str, Any] = Field(..., description="Данные события")
     timestamp: datetime = Field(..., description="Время события")
-

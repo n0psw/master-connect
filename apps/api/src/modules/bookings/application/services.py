@@ -18,7 +18,13 @@ from core.exceptions import BusinessLogicError, NotFoundError, PermissionDeniedE
 from core.logging import get_logger
 from modules.admin.domain.models import AuditLog
 from integrations.google_calendar import google_calendar_service
-from modules.bookings.domain.models import Booking, BookingStatus
+from modules.bookings.domain.models import (
+    Booking,
+    BookingStatus,
+    BookingRequest,
+    BookingRequestStatus,
+    BookingRequestType,
+)
 from modules.bookings.domain.schemas import (
     AdminBookingAction,
     BookingAnalytics,
@@ -37,6 +43,9 @@ from modules.bookings.domain.schemas import (
     CalendarEvent,
     CalendarEventResponse,
     PaymentInfo,
+    BookingRequestCreate,
+    BookingRequestResponse,
+    BookingRequestDecision,
 )
 from modules.notifications.application.services import create_notification_helper
 from modules.notifications.domain.models import NotificationType
@@ -250,24 +259,26 @@ class BookingService:
             chat_dialog = Dialog(booking_id=booking.id)
             self.db.add(chat_dialog)
             
-            # Пытаемся создать Google Meet ссылку сразу (не критично если не получится)
-            if settings.GOOGLE_CALENDAR_ENABLED:
-                try:
-                    calendar_event = await self._create_calendar_event(booking)
-                    booking.meeting_event_id = calendar_event.event_id
-                    booking.meeting_url = calendar_event.meet_link
-                    logger.info(
-                        "Google Meet link created at booking creation",
-                        booking_id=booking.id,
-                        meeting_url=booking.meeting_url
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "Failed to create Google Meet at booking creation (will retry on confirmation)",
-                        booking_id=booking.id,
-                        error=str(e)
-                    )
-                    # Не критично - создадим при подтверждении оплаты
+            # TEMP: Disabled automatic Google Calendar integration
+            # Uncomment below to restore automatic Meet link creation at booking
+            # ---
+            # if settings.GOOGLE_CALENDAR_ENABLED:
+            #     try:
+            #         calendar_event = await self._create_calendar_event(booking)
+            #         booking.meeting_event_id = calendar_event.event_id
+            #         booking.meeting_url = calendar_event.meet_link
+            #         logger.info(
+            #             "Google Meet link created at booking creation",
+            #             booking_id=booking.id,
+            #             meeting_url=booking.meeting_url
+            #         )
+            #     except Exception as e:
+            #         logger.warning(
+            #             "Failed to create Google Meet at booking creation (will retry on confirmation)",
+            #             booking_id=booking.id,
+            #             error=str(e)
+            #         )
+            # ---
             
             # Коммитим все вместе в одной транзакции
             await self.db.commit()
@@ -416,6 +427,8 @@ class BookingService:
         user_role: UserRole
     ) -> BookingDetail:
         """Получение детальной информации о бронировании."""
+
+
         booking = await self._get_booking_or_404(booking_id)
         
         # Проверяем права доступа
@@ -475,6 +488,16 @@ class BookingService:
         can_cancel = self._can_cancel_booking(booking, user_role, now)
         can_reschedule = self._can_reschedule_booking(booking, user_role, now)
         can_mark_payment = self._can_mark_payment(booking, user_id, user_role)
+
+        active_request = None
+        for req in booking.requests or []:
+            if req.status == BookingRequestStatus.PENDING:
+                active_request = BookingRequestResponse.model_validate(req, from_attributes=True)
+                break
+        
+        if active_request:
+            can_cancel = False
+            can_reschedule = False
         
         # Определяем дедлайны
         cancellation_deadline = self._get_cancellation_deadline(booking)
@@ -486,7 +509,8 @@ class BookingService:
             can_reschedule=can_reschedule,
             can_mark_payment=can_mark_payment,
             cancellation_deadline=cancellation_deadline,
-            reschedule_deadline=reschedule_deadline
+            reschedule_deadline=reschedule_deadline,
+            active_request=active_request
         )
     
     async def get_bookings_list(
@@ -513,10 +537,9 @@ class BookingService:
         elif user_role == UserRole.MENTOR:
             access_filter = Booking.mentor_id == user_id
         elif user_role == UserRole.ADMIN:
-            access_filter = True  # Админ видит все
+            access_filter = True  # ����� ����� ���
         else:
             access_filter = False
-        
         conditions = [access_filter] if access_filter is not True else []
         
         # Применяем дополнительные фильтры
@@ -766,7 +789,147 @@ class BookingService:
                 student_name="Студент",
                 student_avatar_url=None
             )
-    
+
+    # --- Запросы студента с админ-аппрувалом ---
+    async def create_booking_request(
+        self,
+        booking_id: UUID,
+        user_id: UUID,
+        user_role: UserRole,
+        request_data: BookingRequestCreate
+    ) -> BookingRequestResponse:
+        """Создать запрос на отмену или перенос (student)."""
+        booking = await self._get_booking_or_404(booking_id)
+
+        if user_role != UserRole.STUDENT or booking.student_id != user_id:
+            raise PermissionDeniedError("Только студент-владелец может отправить запрос")
+
+        # Проверяем отсутствие активных запросов
+        existing = await self.db.execute(
+            select(BookingRequest).where(
+                BookingRequest.booking_id == booking_id,
+                BookingRequest.status == BookingRequestStatus.PENDING
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise BusinessLogicError("Уже есть активный запрос по этому бронированию")
+
+        now = datetime.now(timezone.utc)
+        if request_data.type == BookingRequestType.CANCEL:
+            if not self._can_cancel_booking(booking, user_role, now):
+                raise BusinessLogicError("Нельзя отменить это бронирование")
+            desired_start = None
+            desired_end = None
+        else:
+            if not request_data.desired_starts_at:
+                raise BusinessLogicError("Не указано новое время для переноса")
+            if not self._can_reschedule_booking(booking, user_role, now):
+                raise BusinessLogicError("Нельзя перенести это бронирование")
+            desired_start = request_data.desired_starts_at
+            desired_end = desired_start + timedelta(minutes=booking.duration_minutes)
+            await self._check_slot_availability(
+                mentor_id=booking.mentor_id,
+                starts_at=desired_start,
+                duration_minutes=booking.duration_minutes,
+                exclude_booking_id=booking_id
+            )
+
+        req = BookingRequest(
+            booking_id=booking_id,
+            requested_by=user_id,
+            type=request_data.type,
+            status=BookingRequestStatus.PENDING,
+            desired_starts_at=desired_start,
+            desired_ends_at=desired_end,
+            student_reason=request_data.reason
+        )
+        self.db.add(req)
+        await self.db.commit()
+        await self.db.refresh(req)
+        return BookingRequestResponse.model_validate(req, from_attributes=True)
+
+    async def get_booking_requests(
+        self,
+        actor_id: UUID,
+        actor_role: UserRole,
+        status: Optional[BookingRequestStatus] = None
+    ) -> List[BookingRequestResponse]:
+        """
+        Админ видит все, ментор — только свои брони (только переносы), студент — нет доступа.
+        """
+        query = select(BookingRequest).options(
+            selectinload(BookingRequest.booking)
+        )
+        if status:
+            query = query.where(BookingRequest.status == status)
+
+        if actor_role == UserRole.MENTOR:
+            query = query.join(Booking, Booking.id == BookingRequest.booking_id)
+            query = query.where(Booking.mentor_id == actor_id)
+            query = query.where(BookingRequest.type == BookingRequestType.RESCHEDULE)
+        elif actor_role != UserRole.ADMIN:
+            raise PermissionDeniedError("Недостаточно прав для просмотра запросов")
+
+        result = await self.db.execute(query.order_by(BookingRequest.created_at.desc()))
+        return [BookingRequestResponse.model_validate(r, from_attributes=True) for r in result.scalars().all()]
+
+    async def decide_booking_request(
+        self,
+        request_id: UUID,
+        actor_id: UUID,
+        actor_role: UserRole,
+        decision: BookingRequestDecision
+    ) -> BookingRequestResponse:
+        req = await self.db.get(BookingRequest, request_id)
+        if not req:
+            raise NotFoundError("BookingRequest", str(request_id))
+        if req.status != BookingRequestStatus.PENDING:
+            raise BusinessLogicError("Запрос уже обработан")
+
+        booking = await self._get_booking_or_404(req.booking_id)
+
+        # Права: CANCEL — только админ; RESCHEDULE — админ или ментор владельца
+        if req.type == BookingRequestType.CANCEL:
+            if actor_role != UserRole.ADMIN:
+                raise PermissionDeniedError("Только администратор может решать отмену")
+        else:
+            if actor_role not in [UserRole.ADMIN, UserRole.MENTOR]:
+                raise PermissionDeniedError("Недостаточно прав для решения запроса")
+            if actor_role == UserRole.MENTOR and booking.mentor_id != actor_id:
+                raise PermissionDeniedError("Можно решать только свои бронирования")
+
+        if decision.action == BookingRequestStatus.APPROVED:
+            if req.type == BookingRequestType.CANCEL:
+                if not booking.can_transition_to(BookingStatus.CANCELLED):
+                    raise BusinessLogicError("Бронь нельзя отменить")
+                booking.status = BookingStatus.CANCELLED
+                booking.updated_at = datetime.now(timezone.utc)
+            else:
+                new_start = decision.new_starts_at or req.desired_starts_at
+                if not new_start:
+                    raise BusinessLogicError("Не указано новое время для переноса")
+                await self._check_slot_availability(
+                    mentor_id=booking.mentor_id,
+                    starts_at=new_start,
+                    duration_minutes=booking.duration_minutes,
+                    exclude_booking_id=booking.id
+                )
+                booking.starts_at = new_start
+                booking.ends_at = new_start + timedelta(minutes=booking.duration_minutes)
+                booking.updated_at = datetime.now(timezone.utc)
+                await self._update_calendar_event(booking)
+        else:
+            # REJECTED — без изменений в брони
+            pass
+
+        req.status = decision.action
+        req.admin_comment = decision.admin_comment
+        req.decided_by = actor_id
+        req.updated_at = datetime.now(timezone.utc)
+
+        await self.db.commit()
+        await self.db.refresh(req)
+        return BookingRequestResponse.model_validate(req, from_attributes=True)
     async def confirm_payment_by_admin(
         self,
         booking_id: UUID,
@@ -807,34 +970,34 @@ class BookingService:
                 ref = f" (ref: {confirmation_data.payment_reference})" if confirmation_data.payment_reference else ""
                 booking.payment_note = (confirmation_data.payment_notes or "") + ref
             
-            # Создаем/обновляем событие в календаре если еще не создано
-            # Не откатываем подтверждение если календарь недоступен - логируем ошибку
-            if not booking.meeting_url or not booking.meeting_event_id:
-                logger.info("Attempting to create calendar event", booking_id=booking_id)
-                try:
-                    calendar_event = await self._create_calendar_event(booking)
-                    booking.meeting_event_id = calendar_event.event_id
-                    booking.meeting_url = calendar_event.meet_link
-                    logger.info(
-                        "Calendar event created successfully",
-                        booking_id=booking_id,
-                        event_id=calendar_event.event_id
-                    )
-                except Exception as e:
-                    logger.error(
-                        "Failed to create calendar event, but booking will be confirmed",
-                        booking_id=booking_id,
-                        error=str(e),
-                        exc_info=True
-                    )
-                    # Не откатываем подтверждение - календарь не критичен
-                    # Бронирование будет подтверждено, но без ссылки на Google Meet
-            else:
-                logger.info(
-                    "Google Meet link already exists, skipping calendar event creation",
-                    booking_id=booking_id,
-                    meeting_url=booking.meeting_url
-                )
+            # TEMP: Disabled automatic Google Calendar integration
+            # Uncomment below to restore automatic Meet link creation on payment confirmation
+            # ---
+            # if not booking.meeting_url or not booking.meeting_event_id:
+            #     logger.info("Attempting to create calendar event", booking_id=booking_id)
+            #     try:
+            #         calendar_event = await self._create_calendar_event(booking)
+            #         booking.meeting_event_id = calendar_event.event_id
+            #         booking.meeting_url = calendar_event.meet_link
+            #         logger.info(
+            #             "Calendar event created successfully",
+            #             booking_id=booking_id,
+            #             event_id=calendar_event.event_id
+            #         )
+            #     except Exception as e:
+            #         logger.error(
+            #             "Failed to create calendar event, but booking will be confirmed",
+            #             booking_id=booking_id,
+            #             error=str(e),
+            #             exc_info=True
+            #         )
+            # else:
+            #     logger.info(
+            #         "Google Meet link already exists, skipping calendar event creation",
+            #         booking_id=booking_id,
+            #         meeting_url=booking.meeting_url
+            #     )
+            # ---
         else:
             # Проверяем валидность перехода статуса
             if not booking.can_transition_to(BookingStatus.REJECTED):
@@ -1355,6 +1518,84 @@ class BookingService:
                 student_avatar_url=None
             )
     
+    async def set_meet_link_by_mentor(
+        self,
+        booking_id: UUID,
+        mentor_id: UUID,
+        meet_link: str
+    ) -> BookingResponse:
+        """Установить Google Meet ссылку ментором вручную."""
+        booking = await self._get_booking_or_404(booking_id)
+        
+        if booking.mentor_id != mentor_id:
+            raise PermissionDeniedError("Вы не являетесь ментором этого бронирования")
+        
+        booking_status = booking.status
+        if isinstance(booking_status, str):
+            booking_status = BookingStatus(booking_status)
+        
+        if booking_status != BookingStatus.CONFIRMED:
+            raise BusinessLogicError(
+                f"Ссылку можно добавить только для подтвержденных бронирований. "
+                f"Текущий статус: {booking_status.value}"
+            )
+        
+        if not meet_link.startswith("https://meet.google.com/"):
+            raise BusinessLogicError("Ссылка должна начинаться с https://meet.google.com/")
+        
+        old_link = booking.meeting_url
+        booking.meeting_url = meet_link
+        booking.updated_at = datetime.now(timezone.utc)
+        
+        await self.db.commit()
+        
+        logger.info(
+            "Meet link set by mentor",
+            booking_id=booking_id,
+            mentor_id=mentor_id,
+            old_link=old_link,
+            new_link=meet_link
+        )
+        
+        await self.db.refresh(booking, ["student", "mentor"])
+        if booking.student:
+            await self.db.refresh(booking.student, ["user"])
+        if booking.mentor:
+            await self.db.refresh(booking.mentor, ["user"])
+        
+        try:
+            await self._create_audit_log(
+                actor_id=mentor_id,
+                action="SET_MEET_LINK",
+                entity="booking",
+                entity_id=booking_id,
+                meta={
+                    "old_link": old_link,
+                    "new_link": meet_link
+                }
+            )
+        except Exception as audit_error:
+            logger.warning(
+                "Failed to create audit log for setting meet link",
+                booking_id=booking_id,
+                error=str(audit_error)
+            )
+        
+        try:
+            student_tz = await self._get_user_timezone(booking.student_id)
+            starts_at_str = self._format_datetime_in_tz(booking.starts_at, student_tz) if booking.starts_at else ""
+            await self._notify_booking_event(
+                booking=booking,
+                notification_type=NotificationType.BOOKING_CONFIRMED,
+                title="Ссылка на консультацию добавлена",
+                message_student=f"Ментор добавил ссылку на Google Meet для консультации {starts_at_str}. Проверьте детали бронирования.",
+                message_mentor=None,
+            )
+        except Exception as notify_error:
+            logger.warning("Failed to send meet link notification", booking_id=booking.id, error=str(notify_error))
+        
+        return await self._build_booking_response(booking)
+    
     async def mark_booking_no_show(
         self,
         booking_id: UUID,
@@ -1782,7 +2023,9 @@ class BookingService:
         query = select(Booking).options(
             selectinload(Booking.student).selectinload(Student.user),
             selectinload(Booking.mentor).selectinload(Mentor.user),
-            selectinload(Booking.review)
+            selectinload(Booking.review),
+            selectinload(Booking.requests).selectinload(BookingRequest.requester),
+            selectinload(Booking.requests).selectinload(BookingRequest.admin),
         ).where(Booking.id == booking_id)
         
         result = await self.db.execute(query)
@@ -1908,7 +2151,7 @@ class BookingService:
         
         if not availability_rule:
             logger.warning(
-                "Availability rule not found for booking",
+                "Availability rule not found for booking; allowing because explicit reschedule/booking request",
                 mentor_id=mentor_id,
                 weekday=weekday,
                 start_time=start_time.isoformat(),
@@ -1916,9 +2159,7 @@ class BookingService:
                 starts_at_local=starts_at_local.isoformat(),
                 mentor_timezone=mentor_tz_str
             )
-            raise BusinessLogicError(
-                f"Ментор недоступен в выбранное время. Проверьте расписание ментора."
-            )
+            return
         
         # Проверяем, не попадает ли слот в перерывы (breaks)
         if availability_rule.breaks_json:
@@ -2087,7 +2328,6 @@ class BookingService:
             return booking.status == BookingStatus.CONFIRMED
         
         # Другие пользователи могут переносить только подтвержденные бронирования
-        # и только если до начала больше 24 часов
         if booking.status != BookingStatus.CONFIRMED:
             return False
         
@@ -2096,7 +2336,8 @@ class BookingService:
             starts_at = starts_at.replace(tzinfo=timezone.utc)
         
         time_until_start = starts_at - now
-        return time_until_start > timedelta(hours=24)
+        min_hours = getattr(settings, "BOOKING_RESCHEDULE_MIN_HOURS", 1)
+        return time_until_start > timedelta(hours=min_hours)
     
     def _can_mark_payment(self, booking: Booking, user_id: UUID, user_role: UserRole) -> bool:
         """Проверка возможности отметки оплаты."""
@@ -2125,11 +2366,11 @@ class BookingService:
     def _get_reschedule_deadline(self, booking: Booking) -> Optional[datetime]:
         """Получение крайнего срока для переноса."""
         if booking.status == BookingStatus.CONFIRMED:
-            # За 24 часа до начала
             starts_at = booking.starts_at
             if starts_at and starts_at.tzinfo is None:
                 starts_at = starts_at.replace(tzinfo=timezone.utc)
-            return starts_at - timedelta(hours=24)
+            min_hours = getattr(settings, "BOOKING_RESCHEDULE_MIN_HOURS", 1)
+            return starts_at - timedelta(hours=min_hours)
         else:
             return None
     

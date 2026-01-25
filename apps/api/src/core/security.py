@@ -87,7 +87,7 @@ def verify_token(token: str, token_type: str = "access") -> Dict[str, Any]:
         
     except jwt.ExpiredSignatureError:
         raise AuthenticationError("Токен истек")
-    except jwt.JWTError as e:
+    except Exception as e:
         logger.warning("JWT decode error", error=str(e), token_type=token_type)
         raise AuthenticationError("Неверный токен")
 
@@ -168,7 +168,7 @@ def verify_password_reset_token(token: str) -> Optional[str]:
             return None
             
         return decoded_token["sub"]
-    except jwt.JWTError:
+    except Exception:
         return None
 
 

@@ -126,11 +126,25 @@ export const availabilityApi = {
 
   // Обновление дня в недельном расписании
   async updateWeeklyScheduleDay(dayOfWeek: number, data: UpdateWeeklyScheduleRequest): Promise<WeeklySchedule> {
-    const response = await api.put<WeeklySchedule>(`/availability/my/rules`, {
-      day_of_week: dayOfWeek,
-      ...data,
-    })
-    return response.data
+    // Backend не поддерживает частичное обновление одного дня через /my/rules.
+    // Берём текущее расписание, меняем один день и сохраняем целиком через /my/schedule.
+    const profile = await this.getMyAvailability()
+    const dayMap: Record<number, keyof WeeklySchedule> = {
+      0: 'monday',
+      1: 'tuesday',
+      2: 'wednesday',
+      3: 'thursday',
+      4: 'friday',
+      5: 'saturday',
+      6: 'sunday',
+    }
+
+    const dayKey = dayMap[dayOfWeek]
+    const nextSchedule: WeeklySchedule = { ...profile.weekly_schedule }
+    nextSchedule[dayKey] = data.is_available ? data.time_slots : []
+
+    const response = await api.put<any>(`/availability/my/schedule`, nextSchedule)
+    return transformBackendWeeklySchedule(response.data)
   },
 
   // Получение исключений в расписании

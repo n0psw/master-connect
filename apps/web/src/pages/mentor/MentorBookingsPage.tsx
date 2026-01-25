@@ -1,15 +1,16 @@
 import { useState, useMemo } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { Calendar, Clock, Filter, X, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react'
+import { Calendar, Clock, Filter, X, AlertCircle, CheckCircle, XCircle, MessageSquare, Video, ExternalLink, Edit2, Save, Check } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { toast } from 'sonner'
 
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
+import { Input } from '@/shared/ui/input'
 import { bookingsApi } from '@/shared/api/bookings'
 import { BookingStatusLabels, BookingStatusColors } from '@/shared/types/bookings'
-import type { BookingSearchParams, BookingStatus } from '@/shared/types/bookings'
+import type { BookingSearchParams, BookingStatus, BookingRequest } from '@/shared/types/bookings'
 import { getImageUrl } from '@/shared/utils/imageUtils'
 import { formatDateTime, getClientTimezone } from '@/shared/lib/dayjs'
 
@@ -19,6 +20,8 @@ export const MentorBookingsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [showFilters, setShowFilters] = useState(false)
   const [loadingBookingId, setLoadingBookingId] = useState<string | null>(null)
+  const [editingMeetLinkId, setEditingMeetLinkId] = useState<string | null>(null)
+  const [meetLinkInput, setMeetLinkInput] = useState('')
 
   // Извлекаем параметры из URL
   const currentPage = parseInt(searchParams.get('page') || '1')
@@ -64,6 +67,32 @@ export const MentorBookingsPage = () => {
     }
   )
 
+  // Запросы на перенос (для ментора)
+  const { data: bookingRequests, isLoading: requestsLoading } = useQuery(
+    ['booking-requests', 'mentor'],
+    () => bookingsApi.listBookingRequests({ status: 'PENDING' }),
+    { staleTime: 30000 }
+  )
+
+  const decideRequestMutation = useMutation(
+    ({ id, action, newStartsAt, comment }: { id: string; action: 'APPROVED' | 'REJECTED'; newStartsAt?: string; comment?: string }) =>
+      bookingsApi.decideBookingRequest(id, {
+        action,
+        new_starts_at: newStartsAt,
+        admin_comment: comment
+      }),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['booking-requests', 'mentor'])
+        queryClient.invalidateQueries(['my-bookings', 'mentor-list'])
+        toast.success('Решение по запросу сохранено')
+      },
+      onError: (error: any) => {
+        toast.error(error?.detail || 'Ошибка при обработке запроса')
+      }
+    }
+  )
+
   const queryClient = useQueryClient()
 
   const markCompletedMutation = useMutation(
@@ -84,6 +113,44 @@ export const MentorBookingsPage = () => {
       }
     }
   )
+
+  const setMeetLinkMutation = useMutation(
+    ({ bookingId, meetLink }: { bookingId: string; meetLink: string }) => 
+      bookingsApi.setMeetLink(bookingId, meetLink),
+    {
+      onSuccess: () => {
+        toast.success('Ссылка на Google Meet добавлена')
+        queryClient.invalidateQueries(['my-bookings', 'mentor-list'])
+        setEditingMeetLinkId(null)
+        setMeetLinkInput('')
+      },
+      onError: (error: any) => {
+        toast.error('Ошибка: ' + (error?.detail || error?.message))
+      }
+    }
+  )
+
+  const handleSaveMeetLink = (bookingId: string) => {
+    if (!meetLinkInput.trim()) {
+      toast.error('Введите ссылку на Google Meet')
+      return
+    }
+    if (!meetLinkInput.startsWith('https://meet.google.com/')) {
+      toast.error('Ссылка должна начинаться с https://meet.google.com/')
+      return
+    }
+    setMeetLinkMutation.mutate({ bookingId, meetLink: meetLinkInput.trim() })
+  }
+
+  const handleStartEditMeetLink = (bookingId: string, currentLink?: string) => {
+    setEditingMeetLinkId(bookingId)
+    setMeetLinkInput(currentLink || '')
+  }
+
+  const handleCancelEditMeetLink = () => {
+    setEditingMeetLinkId(null)
+    setMeetLinkInput('')
+  }
 
   // Обновление URL параметров
   const updateSearchParams = (newParams: Record<string, string | undefined>) => {
@@ -229,6 +296,65 @@ export const MentorBookingsPage = () => {
             Управляйте консультациями со студентами и отслеживайте доходы
           </p>
         </div>
+
+        {/* Запросы на перенос (одобряет ментор) */}
+        <Card className="mt-6">
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              <span className="font-medium">Запросы на перенос</span>
+            </div>
+            {requestsLoading ? (
+              <p className="text-sm text-muted-foreground">Загрузка...</p>
+            ) : (bookingRequests?.length || 0) === 0 ? (
+              <p className="text-sm text-muted-foreground">Новых запросов нет</p>
+            ) : (
+              bookingRequests!.map((req: BookingRequest) => (
+                <div key={req.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border rounded-lg p-3">
+                  <div className="space-y-1">
+                    <div className="font-medium">Бронь {String(req.booking_id).slice(0, 8)}</div>
+                    {req.desired_starts_at && (
+                      <div className="text-sm text-muted-foreground">
+                        Новое время: {formatDateTime(req.desired_starts_at, clientTz)}
+                      </div>
+                    )}
+                    {req.student_reason && (
+                      <div className="text-sm text-muted-foreground">Комментарий: {req.student_reason}</div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        decideRequestMutation.mutate({
+                          id: req.id,
+                          action: 'APPROVED',
+                          newStartsAt: req.desired_starts_at || undefined
+                        })
+                      }
+                      disabled={decideRequestMutation.isLoading}
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Одобрить
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const comment = window.prompt('Причина отказа?') || undefined
+                        decideRequestMutation.mutate({ id: req.id, action: 'REJECTED', comment })
+                      }}
+                      disabled={decideRequestMutation.isLoading}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Отклонить
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
 
         {/* Статистика */}
         {stats && (
@@ -492,6 +618,72 @@ export const MentorBookingsPage = () => {
                               )}
                             </div>
                           </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Google Meet ссылка - только для CONFIRMED */}
+                    {booking.status === 'CONFIRMED' && (
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Video className="h-4 w-4 text-green-600" />
+                          <strong className="text-sm">Google Meet ссылка</strong>
+                        </div>
+                        
+                        {editingMeetLinkId === booking.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="url"
+                              placeholder="https://meet.google.com/xxx-xxxx-xxx"
+                              value={meetLinkInput}
+                              onChange={(e) => setMeetLinkInput(e.target.value)}
+                              className="flex-1"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveMeetLink(booking.id)}
+                              disabled={setMeetLinkMutation.isLoading}
+                            >
+                              <Save className="h-4 w-4 mr-1" />
+                              {setMeetLinkMutation.isLoading ? '...' : 'Сохранить'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCancelEditMeetLink}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : booking.google_meet_link ? (
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={booking.google_meet_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-green-600 hover:text-green-700 flex items-center gap-1 truncate max-w-md"
+                            >
+                              {booking.google_meet_link}
+                              <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                            </a>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleStartEditMeetLink(booking.id, booking.google_meet_link)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleStartEditMeetLink(booking.id)}
+                            className="text-green-600 border-green-200 hover:bg-green-50"
+                          >
+                            <Video className="h-4 w-4 mr-2" />
+                            Добавить ссылку на Google Meet
+                          </Button>
                         )}
                       </div>
                     )}

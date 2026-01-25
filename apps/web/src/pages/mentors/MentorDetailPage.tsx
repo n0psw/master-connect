@@ -11,6 +11,7 @@ import { mentorsApi } from '@/shared/api/mentors'
 import { reviewsApi } from '@/shared/api/reviews'
 import { useAuthStore } from '@/shared/store/auth'
 import type { MentorDetail } from '@/shared/types/mentors'
+import { getImageUrl } from '@/shared/utils/imageUtils'
 
 export const MentorDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -146,9 +147,9 @@ export const MentorDetailPage = () => {
                     {/* Аватар */}
                     <div className="flex-shrink-0">
                       <div className="w-32 h-32 bg-primary/10 rounded-full flex items-center justify-center">
-                        {mentor.mentor.avatar_url ? (
+                        {getImageUrl(mentor.mentor.avatar_url || mentor.user?.avatar_url) ? (
                           <img 
-                            src={mentor.mentor.avatar_url} 
+                            src={getImageUrl(mentor.mentor.avatar_url || mentor.user?.avatar_url)!} 
                             alt={mentor.user.name || 'Ментор'} 
                             className="w-full h-full rounded-full object-cover"
                           />

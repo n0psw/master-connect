@@ -26,8 +26,9 @@ if TYPE_CHECKING:
     from modules.users.domain.models import Student, User
     from modules.mentors.domain.models import Mentor
     from modules.reviews.domain.models import Review
-    from modules.chat.domain.models import Dialog
-    from modules.payments.domain.models import PaymentEvidence
+from modules.chat.domain.models import Dialog
+from modules.payments.domain.models import PaymentEvidence
+from modules.users.domain.models import User
 
 
 class BookingStatus(str, Enum):
@@ -128,6 +129,12 @@ class Booking(Base):
         back_populates="booking",
         cascade="all, delete-orphan"
     )
+
+    requests: Mapped[list["BookingRequest"]] = relationship(
+        "BookingRequest",
+        back_populates="booking",
+        cascade="all, delete-orphan"
+    )
     
     def __str__(self) -> str:
         return f"Booking {self.id}: {self.mentor.user.name} -> {self.student.user.name}"
@@ -218,3 +225,48 @@ Index(
 
 # Индекс для фильтрации по updated_at (используется в moderation queue)
 Index("idx_booking_updated_at", Booking.updated_at)
+
+# === Booking requests (cancel/reschedule with admin approval) ===
+class BookingRequestType(str, Enum):
+    CANCEL = "CANCEL"
+    RESCHEDULE = "RESCHEDULE"
+
+
+class BookingRequestStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class BookingRequest(Base):
+    """Запрос на отмену или перенос, требующий решения администратора."""
+
+    booking_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bookings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    requested_by: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    type: Mapped[BookingRequestType] = mapped_column(String(20), nullable=False, index=True)
+    status: Mapped[BookingRequestStatus] = mapped_column(String(20), default=BookingRequestStatus.PENDING, nullable=False, index=True)
+
+    desired_starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    desired_ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    student_reason: Mapped[Optional[str]] = mapped_column(String(500))
+    admin_comment: Mapped[Optional[str]] = mapped_column(String(500))
+    decided_by: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    booking: Mapped["Booking"] = relationship("Booking", back_populates="requests")
+    requester: Mapped["User"] = relationship("User", foreign_keys=[requested_by])
+    admin: Mapped[Optional["User"]] = relationship("User", foreign_keys=[decided_by])
+
+    __table_args__ = (
+        Index("idx_booking_request_status", "status"),
+    )
