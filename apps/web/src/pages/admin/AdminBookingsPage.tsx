@@ -1,6 +1,6 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { toast } from 'sonner'
 import {
@@ -281,6 +281,7 @@ export const AdminBookingsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [paymentVerificationModal, setPaymentVerificationModal] = useState<{ bookingId: string } | null>(null)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   // Извлечение параметров из URL
   const searchFilters: AdminBookingSearchParams = {
@@ -478,7 +479,7 @@ const formatDateTime = (dateString: string) => formatDateTimeTz(dateString, tz, 
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-amber-500" />
-              Запросы студентов (отмена — админ, перенос — админ/ментор)
+              Запросы студентов 
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -488,7 +489,12 @@ const formatDateTime = (dateString: string) => formatDateTimeTz(dateString, tz, 
               <p className="text-sm text-muted-foreground">Новых запросов нет</p>
             ) : (
               bookingRequests!.map((req: BookingRequest) => (
-                <div key={req.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border rounded-lg p-3">
+                <div
+                  key={req.id}
+                  className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border rounded-lg p-3 cursor-pointer hover:border-amber-300 hover:bg-amber-50 transition-colors"
+                  onClick={() => navigate(`/admin/bookings/${req.booking_id}`)}
+                  role="button"
+                >
                   <div className="space-y-1">
                     <div className="font-medium">
                       {req.type === 'CANCEL' ? 'Отмена' : 'Перенос'} • Бронь {String(req.booking_id).slice(0, 8)}
@@ -505,14 +511,15 @@ const formatDateTime = (dateString: string) => formatDateTimeTz(dateString, tz, 
                   <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      onClick={() =>
+                      disabled={decideRequestMutation.isLoading}
+                      onClick={(e) => {
+                        e.stopPropagation()
                         decideRequestMutation.mutate({
                           id: req.id,
                           action: 'APPROVED',
                           newStartsAt: req.desired_starts_at || undefined
                         })
-                      }
-                      disabled={decideRequestMutation.isLoading}
+                      }}
                     >
                       <Check className="h-4 w-4 mr-1" />
                       Одобрить
@@ -520,11 +527,12 @@ const formatDateTime = (dateString: string) => formatDateTimeTz(dateString, tz, 
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
+                      disabled={decideRequestMutation.isLoading}
+                      onClick={(e) => {
+                        e.stopPropagation()
                         const comment = window.prompt('Причина отказа?') || undefined
                         decideRequestMutation.mutate({ id: req.id, action: 'REJECTED', comment })
                       }}
-                      disabled={decideRequestMutation.isLoading}
                     >
                       <X className="h-4 w-4 mr-1" />
                       Отклонить
@@ -682,6 +690,16 @@ const formatDateTime = (dateString: string) => formatDateTimeTz(dateString, tz, 
                           <td className="py-4 px-4">
                             <div className="space-y-2">
                               <StatusBadge status={booking.status} />
+                              {booking.active_request?.status === 'PENDING' && (
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  className="text-amber-800 border-amber-300 bg-amber-50"
+                                  onClick={() => navigate(`/admin/bookings/${booking.id}`)}
+                                >
+                                  Запрос
+                                </Button>
+                              )}
                               {booking.status === 'AWAITING_VERIFICATION' && (
                                 <Button
                                   size="sm"
@@ -778,3 +796,4 @@ const formatDateTime = (dateString: string) => formatDateTimeTz(dateString, tz, 
     </>
   )
 }
+

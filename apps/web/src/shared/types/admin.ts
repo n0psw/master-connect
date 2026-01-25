@@ -89,6 +89,7 @@ export interface AdminBooking {
     specific_questions?: string
     preferred_language?: string
   }
+  active_request?: import('./bookings').BookingRequest
 }
 
 export interface AdminBookingsResponse {

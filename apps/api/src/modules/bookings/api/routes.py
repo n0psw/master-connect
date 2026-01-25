@@ -530,12 +530,12 @@ async def confirm_payment(
     try:
         booking = await booking_service.confirm_payment_by_admin(
             booking_id=booking_id,
-            user_id=current_user_info.id,
+            admin_id=current_user.id,
             confirmation_data=confirmation_data
         )
         
         action = "confirmed" if confirmation_data.payment_confirmed else "rejected"
-        logger.info(f"Payment {action} by admin", user_id=current_user_info.id, booking_id=booking_id)
+        logger.info(f"Payment {action} by admin", user_id=current_user.id, booking_id=booking_id)
         
         return booking
     
@@ -552,7 +552,7 @@ async def confirm_payment(
         )
     
     except Exception as e:
-        logger.error("Error confirming payment", booking_id=booking_id, user_id=current_user_info.id, error=str(e))
+        logger.error("Error confirming payment", booking_id=booking_id, user_id=current_user.id, error=str(e))
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера"

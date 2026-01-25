@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Calendar, Clock, Filter, X, AlertCircle, CheckCircle, XCircle, MessageSquare, Video, ExternalLink, Edit2, Save, Check } from 'lucide-react'
@@ -302,7 +302,7 @@ export const MentorBookingsPage = () => {
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-amber-500" />
-              <span className="font-medium">Запросы на перенос</span>
+              <span className="font-medium">Запросы</span>
             </div>
             {requestsLoading ? (
               <p className="text-sm text-muted-foreground">Загрузка...</p>
@@ -310,7 +310,12 @@ export const MentorBookingsPage = () => {
               <p className="text-sm text-muted-foreground">Новых запросов нет</p>
             ) : (
               bookingRequests!.map((req: BookingRequest) => (
-                <div key={req.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border rounded-lg p-3">
+                <div
+                  key={req.id}
+                  className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border rounded-lg p-3 cursor-pointer hover:border-amber-300 hover:bg-amber-50 transition-colors"
+                  onClick={() => navigate(`/mentor/bookings/${req.booking_id}`)}
+                  role="button"
+                >
                   <div className="space-y-1">
                     <div className="font-medium">Бронь {String(req.booking_id).slice(0, 8)}</div>
                     {req.desired_starts_at && (
@@ -325,13 +330,14 @@ export const MentorBookingsPage = () => {
                   <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation()
                         decideRequestMutation.mutate({
                           id: req.id,
                           action: 'APPROVED',
                           newStartsAt: req.desired_starts_at || undefined
                         })
-                      }
+                      }}
                       disabled={decideRequestMutation.isLoading}
                     >
                       <Check className="h-4 w-4 mr-1" />
@@ -340,7 +346,8 @@ export const MentorBookingsPage = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         const comment = window.prompt('Причина отказа?') || undefined
                         decideRequestMutation.mutate({ id: req.id, action: 'REJECTED', comment })
                       }}
@@ -565,6 +572,16 @@ export const MentorBookingsPage = () => {
 
                           {/* Действия */}
                           <div className="flex flex-col items-end space-y-2">
+                            {booking.active_request?.status === 'PENDING' && (
+                              <Button
+                                size="xs"
+                                variant="secondary"
+                                className="text-amber-800 bg-amber-100 border-amber-300"
+                                onClick={() => navigate(`/mentor/bookings/${booking.id}`)}
+                              >
+                                Запрос
+                              </Button>
+                            )}
                             <Link to={`/mentor/bookings/${booking.id}`}>
                               <Button variant="ghost" size="sm">
                                 Подробнее
@@ -739,3 +756,4 @@ export const MentorBookingsPage = () => {
     </>
   )
 }
+

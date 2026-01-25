@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
@@ -953,3 +953,4 @@ export const BookingDetailPage = () => {
     </>
   )
 }
+
