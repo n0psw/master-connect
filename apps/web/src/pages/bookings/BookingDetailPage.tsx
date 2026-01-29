@@ -38,6 +38,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Textarea } from '@/shared/ui/textarea'
 import { Input } from '@/shared/ui/input'
 import { ReviewForm } from '@/shared/components/ReviewForm'
+import { PaymentEvidenceUpload } from '@/shared/components/PaymentEvidenceUpload'
 import { bookingsApi } from '@/shared/api/bookings'
 import { useAuthStore } from '@/shared/store/auth'
 import { BookingStatusLabels, BookingStatusColors } from '@/shared/types/bookings'
@@ -102,26 +103,12 @@ const BookingActions = ({ booking, userRole, canCancel, canReschedule, activeReq
   const [showCancel, setShowCancel] = useState(false)
   const [showReview, setShowReview] = useState(false)
   const [showMeetLinkEdit, setShowMeetLinkEdit] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [newDateTime, setNewDateTime] = useState('')
   const [cancelReason, setCancelReason] = useState('')
   const [meetLinkInput, setMeetLinkInput] = useState((booking as any).google_meet_link || '')
   
   const queryClient = useQueryClient()
-
-  // Мутации для различных действий
-  const markPaymentMutation = useMutation(bookingsApi.markPayment, {
-    onSuccess: () => {
-      queryClient.invalidateQueries(['booking', booking.id])
-      queryClient.invalidateQueries(['my-bookings'])
-      queryClient.invalidateQueries(['admin-bookings'])
-      queryClient.invalidateQueries(['moderation-queue'])
-      queryClient.invalidateQueries(['booking-stats'])
-      toast.success('Отметка об оплате отправлена!')
-    },
-    onError: (error: any) => {
-      toast.error(error?.detail || 'Ошибка при отправке отметки об оплате')
-    }
-  })
 
   const cancelMutation = useMutation(
     async (data: { reason: string }) => {
@@ -255,10 +242,6 @@ const BookingActions = ({ booking, userRole, canCancel, canReschedule, activeReq
   const chatBasePath =
     userRole === 'mentor' ? '/mentor/chat' : userRole === 'student' ? '/student/chat' : '/admin/chat'
 
-  const handleMarkPayment = () => {
-    markPaymentMutation.mutate(booking.id)
-  }
-
   const handleMarkCompleted = () => {
     if (userRole === 'admin') {
       markCompletedByAdminMutation.mutate(booking.id)
@@ -358,12 +341,11 @@ const BookingActions = ({ booking, userRole, canCancel, canReschedule, activeReq
 
         {canPayment && (
           <Button
-            onClick={handleMarkPayment}
-            disabled={markPaymentMutation.isLoading}
+            onClick={() => setShowPaymentModal(true)}
             className="bg-green-600 hover:bg-green-700"
           >
             <CreditCard className="h-4 w-4 mr-2" />
-            {markPaymentMutation.isLoading ? 'Отправка...' : 'Я оплатил'}
+            Я оплатил
           </Button>
         )}
 
@@ -578,6 +560,22 @@ const BookingActions = ({ booking, userRole, canCancel, canReschedule, activeReq
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Модальное окно загрузки чека оплаты */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <PaymentEvidenceUpload
+              bookingId={booking.id}
+              onClose={() => setShowPaymentModal(false)}
+              onSuccess={() => {
+                queryClient.invalidateQueries(['booking', booking.id])
+                setShowPaymentModal(false)
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Модальное окно формы отзыва */}

@@ -17,7 +17,11 @@ class BookingIntakeForm(BaseModel):
     # Обязательные поля
     goals: str = Field(..., min_length=10, max_length=1000, description="Цели консультации")
     current_situation: str = Field(..., min_length=10, max_length=1000, description="Текущая ситуация")
-    specific_questions: List[str] = Field(..., min_items=1, max_items=5, description="Конкретные вопросы")
+    specific_questions: List[str] = Field(
+        default_factory=list,
+        max_items=5,
+        description="Конкретные вопросы (если есть)"
+    )
     
     # Дополнительная информация
     preparation_level: Optional[str] = Field(None, max_length=500, description="Уровень подготовки")
@@ -25,19 +29,29 @@ class BookingIntakeForm(BaseModel):
     expected_outcome: Optional[str] = Field(None, max_length=500, description="Ожидаемый результат")
     additional_info: Optional[str] = Field(None, max_length=1000, description="Дополнительная информация")
     
+    @field_validator("specific_questions", mode="before")
+    @classmethod
+    def ensure_questions_list(cls, v):
+        """Гарантируем, что поле всегда список."""
+        if v is None:
+            return []
+        return v
+
     @field_validator("specific_questions")
     @classmethod
     def validate_questions(cls, v):
         """Валидация вопросов."""
         if not isinstance(v, list):
             raise ValueError("Вопросы должны быть списком")
-        
-        # Проверяем каждый вопрос
-        for question in v:
-            if not question or len(question.strip()) < 5:
+
+        cleaned_questions = [question.strip() for question in v if question and question.strip()]
+
+        # Проверяем каждый вопрос, если они есть
+        for question in cleaned_questions:
+            if len(question) < 5:
                 raise ValueError("Каждый вопрос должен содержать минимум 5 символов")
-        
-        return v
+
+        return cleaned_questions
 
 
 class BookingCreate(BaseModel):

@@ -31,7 +31,14 @@ const bookingSchema = z.object({
   time: z.string().min(1, 'Выберите время'),
   goals: z.string().min(10, 'Опишите ваши цели (минимум 10 символов)'),
   experience: z.string().min(10, 'Расскажите о своем опыте (минимум 10 символов)'),
-  questions: z.string().min(5, 'Укажите хотя бы один вопрос (минимум 5 символов)'),
+  questions: z
+    .string()
+    .trim()
+    .optional()
+    .refine((val) => !val || val.length >= 5, {
+      message: '\u0415\u0441\u043b\u0438 \u0437\u0430\u043f\u043e\u043b\u043d\u044f\u0435\u0442\u0435, \u0443\u043a\u0430\u0436\u0438\u0442\u0435 \u043c\u0438\u043d\u0438\u043c\u0443\u043c 5 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432'
+    })
+    .transform((val) => val ?? ''),
   additionalInfo: z.string().optional()
 })
 
@@ -174,15 +181,6 @@ export const BookConsultationPage = () => {
           .map(q => q.trim())
           .filter(q => q.length >= 5)
       : []
-    
-    const finalQuestions = specificQuestions.length > 0 
-      ? specificQuestions 
-      : (data.questions?.trim() ? [data.questions.trim()] : [])
-    
-    if (finalQuestions.length === 0) {
-      toast.error('Укажите хотя бы один вопрос (минимум 5 символов)')
-      return
-    }
 
     const bookingData: BookingCreate = {
       mentor_id: mentorId!,
@@ -191,10 +189,10 @@ export const BookConsultationPage = () => {
       intake_form: {
         goals: data.goals,
         current_situation: data.experience,
-        specific_questions: finalQuestions,
-        additional_info: data.additionalInfo || ''
+        specific_questions: specificQuestions,
+        additional_info: data.additionalInfo?.trim() || ''
       },
-      notes: data.questions || undefined
+      notes: data.questions?.trim() || undefined
     }
 
     bookingMutation.mutate(bookingData)

@@ -25,6 +25,7 @@ from modules.bookings.domain.models import (
     BookingRequestStatus,
     BookingRequestType,
 )
+from modules.payments.domain.models import PaymentEvidence
 from modules.bookings.domain.schemas import (
     AdminBookingAction,
     BookingAnalytics,
@@ -715,6 +716,14 @@ class BookingService:
             raise BusinessLogicError(
                 f"Нельзя отметить оплату для бронирования в статусе {booking.status.value}"
             )
+
+        # Проверяем наличие загруженного чека оплаты
+        evidence_count_result = await self.db.execute(
+            select(func.count()).select_from(PaymentEvidence).where(PaymentEvidence.booking_id == booking_id)
+        )
+        evidence_count = evidence_count_result.scalar_one()
+        if evidence_count == 0:
+            raise BusinessLogicError("Загрузите чек оплаты, чтобы отправить оплату на проверку")
         
         # Проверка истечения холда временно отключена (в модели нет поля)
         
