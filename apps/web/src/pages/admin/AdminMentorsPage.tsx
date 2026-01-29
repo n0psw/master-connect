@@ -413,12 +413,6 @@ export const AdminMentorsPage = () => {
                                   <span>30м: {mentor.price_30}₸</span>
                                 </div>
                               )}
-                              {mentor.price_45 && (
-                                <div className="flex items-center space-x-1">
-                                  <Clock className="h-3 w-3" />
-                                  <span>45м: {mentor.price_45}₸</span>
-                                </div>
-                              )}
                               {mentor.price_60 && (
                                 <div className="flex items-center space-x-1">
                                   <Clock className="h-3 w-3" />
@@ -581,15 +575,10 @@ export const AdminMentorsPage = () => {
                     {/* Цены */}
                     <div>
                       <h4 className="font-medium mb-2">Цены за консультации</h4>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                         {detailsMentor?.mentor?.price_30 && (
                           <div className="text-sm">
                             <span className="font-medium">30 мин:</span> {detailsMentor.mentor.price_30}₸
-                          </div>
-                        )}
-                        {detailsMentor?.mentor?.price_45 && (
-                          <div className="text-sm">
-                            <span className="font-medium">45 мин:</span> {detailsMentor.mentor.price_45}₸
                           </div>
                         )}
                         {detailsMentor?.mentor?.price_60 && (
@@ -849,7 +838,7 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Цена 30 мин (₸)</label>
               <Input
@@ -857,15 +846,6 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
                 value={formData.price_30 || ''}
                 onChange={(e) => setFormData({ ...formData, price_30: e.target.value ? Number(e.target.value) : undefined })}
                 placeholder="15000"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Цена 45 мин (₸)</label>
-              <Input
-                type="number"
-                value={formData.price_45 || ''}
-                onChange={(e) => setFormData({ ...formData, price_45: e.target.value ? Number(e.target.value) : undefined })}
-                placeholder="22500"
               />
             </div>
             <div>
@@ -1058,21 +1038,13 @@ const EditMentorModal = ({ isOpen, mentorId, onClose, onSuccess }: EditMentorMod
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Цена 30 мин</label>
                 <Input
                   type="number"
                   value={formData.price_30 || ''}
                   onChange={(e) => setFormData({ ...formData, price_30: e.target.value ? Number(e.target.value) : undefined })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Цена 45 мин</label>
-                <Input
-                  type="number"
-                  value={formData.price_45 || ''}
-                  onChange={(e) => setFormData({ ...formData, price_45: e.target.value ? Number(e.target.value) : undefined })}
                 />
               </div>
               <div>

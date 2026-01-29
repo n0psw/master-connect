@@ -24,7 +24,7 @@ import type { BookingCreate } from '@/shared/types/bookings'
 
 // Схема валидации формы бронирования
 const bookingSchema = z.object({
-  duration: z.enum(['30', '45', '60'], {
+  duration: z.enum(['30', '60'], {
     required_error: 'Выберите длительность консультации'
   }),
   date: z.string().min(1, 'Выберите дату'),
@@ -78,6 +78,7 @@ export const BookConsultationPage = () => {
   const selectedDuration = watch('duration')
   const selectedDate = watch('date')
   const selectedTime = watch('time')
+  const hasAvailableDurations = Boolean(mentor?.mentor?.price_30 || mentor?.mentor?.price_60)
 
   // Подгружаем реальный календарь слотов (следующие 14 дней)
   const dateFrom = useMemo(() => {
@@ -120,8 +121,11 @@ export const BookConsultationPage = () => {
   // Обновляем цену при изменении длительности
   useEffect(() => {
     if (selectedDuration && mentor) {
-      const priceKey = `price_${selectedDuration}` as 'price_30' | 'price_45' | 'price_60'
-      const price = mentor.mentor[priceKey]
+      const priceMap: Record<'30' | '60', number | null> = {
+        '30': mentor.mentor.price_30,
+        '60': mentor.mentor.price_60,
+      }
+      const price = priceMap[selectedDuration as '30' | '60']
       setSelectedPrice(price || null)
     }
   }, [selectedDuration, mentor])
@@ -398,12 +402,6 @@ export const BookConsultationPage = () => {
                             <span className="font-medium">{formatPrice(mentor.mentor.price_30)}</span>
                           </div>
                         )}
-                        {mentor.mentor.price_45 && (
-                          <div className="flex justify-between text-sm">
-                            <span>45 минут</span>
-                            <span className="font-medium">{formatPrice(mentor.mentor.price_45)}</span>
-                          </div>
-                        )}
                         {mentor.mentor.price_60 && (
                           <div className="flex justify-between text-sm">
                             <span>60 минут</span>
@@ -471,67 +469,53 @@ export const BookConsultationPage = () => {
                           <Label className="text-base font-medium mb-4 block">
                             Длительность консультации
                           </Label>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            {mentor.mentor.price_30 && (
-                              <label className={`cursor-pointer border-2 rounded-lg p-4 text-center transition-colors ${
-                                selectedDuration === '30' ? 'border-primary bg-primary/5' : 'border-input hover:bg-accent'
-                              }`}>
-                                <input
-                                  type="radio"
-                                  value="30"
-                                  {...register('duration')}
-                                  className="sr-only"
-                                />
-                                <div className="font-semibold">30 минут</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {formatPrice(mentor.mentor.price_30)}
-                                </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Быстрая консультация
-                                </div>
-                              </label>
-                            )}
+                          {hasAvailableDurations ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {mentor.mentor.price_30 && (
+                                <label className={`cursor-pointer border-2 rounded-lg p-4 text-center transition-colors ${
+                                  selectedDuration === '30' ? 'border-primary bg-primary/5' : 'border-input hover:bg-accent'
+                                }`}>
+                                  <input
+                                    type="radio"
+                                    value="30"
+                                    {...register('duration')}
+                                    className="sr-only"
+                                  />
+                                  <div className="font-semibold">30 минут</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {formatPrice(mentor.mentor.price_30)}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Быстрая консультация
+                                  </div>
+                                </label>
+                              )}
 
-                            {mentor.mentor.price_45 && (
-                              <label className={`cursor-pointer border-2 rounded-lg p-4 text-center transition-colors ${
-                                selectedDuration === '45' ? 'border-primary bg-primary/5' : 'border-input hover:bg-accent'
-                              }`}>
-                                <input
-                                  type="radio"
-                                  value="45"
-                                  {...register('duration')}
-                                  className="sr-only"
-                                />
-                                <div className="font-semibold">45 минут</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {formatPrice(mentor.mentor.price_45)}
-                                </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Стандартная консультация
-                                </div>
-                              </label>
-                            )}
-
-                            {mentor.mentor.price_60 && (
-                              <label className={`cursor-pointer border-2 rounded-lg p-4 text-center transition-colors ${
-                                selectedDuration === '60' ? 'border-primary bg-primary/5' : 'border-input hover:bg-accent'
-                              }`}>
-                                <input
-                                  type="radio"
-                                  value="60"
-                                  {...register('duration')}
-                                  className="sr-only"
-                                />
-                                <div className="font-semibold">60 минут</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {formatPrice(mentor.mentor.price_60)}
-                                </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Развернутая консультация
-                                </div>
-                              </label>
-                            )}
-                          </div>
+                              {mentor.mentor.price_60 && (
+                                <label className={`cursor-pointer border-2 rounded-lg p-4 text-center transition-colors ${
+                                  selectedDuration === '60' ? 'border-primary bg-primary/5' : 'border-input hover:bg-accent'
+                                }`}>
+                                  <input
+                                    type="radio"
+                                    value="60"
+                                    {...register('duration')}
+                                    className="sr-only"
+                                  />
+                                  <div className="font-semibold">60 минут</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {formatPrice(mentor.mentor.price_60)}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Развернутая консультация
+                                  </div>
+                                </label>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              У этого ментора сейчас нет доступных консультаций на 30 или 60 минут.
+                            </p>
+                          )}
                           {errors.duration && (
                             <p className="text-sm text-destructive mt-2">{errors.duration.message}</p>
                           )}

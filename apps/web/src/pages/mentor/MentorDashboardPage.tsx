@@ -126,7 +126,7 @@ export const MentorDashboardPage = () => {
     !mentorProfile.bio || 
     !mentorProfile.headline ||
     mentorProfile.languages.length === 0 ||
-    (!mentorProfile.price_30 && !mentorProfile.price_45 && !mentorProfile.price_60)
+    (!mentorProfile.price_30 && !mentorProfile.price_60)
 
   return (
     <>

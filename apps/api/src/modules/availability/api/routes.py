@@ -85,6 +85,12 @@ async def get_mentor_availability_calendar(
             detail="Конечная дата не может быть раньше начальной"
         )
     
+    if duration_minutes is not None and duration_minutes not in (30, 60):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Длительность должна быть 30 или 60 минут"
+        )
+    
     max_days = (date_to - date_from).days
     if max_days > 60:
         raise HTTPException(

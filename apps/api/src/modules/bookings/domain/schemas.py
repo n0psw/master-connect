@@ -66,8 +66,8 @@ class BookingCreate(BaseModel):
     @classmethod
     def validate_duration(cls, v):
         """Валидация длительности."""
-        if v not in [30, 45, 60]:
-            raise ValueError("Длительность должна быть 30, 45 или 60 минут")
+        if v not in [30, 60]:
+            raise ValueError("Длительность должна быть 30 или 60 минут")
         return v
     
     @field_validator("starts_at")

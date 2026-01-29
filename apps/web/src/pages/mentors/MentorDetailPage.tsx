@@ -91,9 +91,8 @@ export const MentorDetailPage = () => {
     )
   }
 
-  const minPrice = Math.min(
-    ...[mentor.mentor.price_30, mentor.mentor.price_45, mentor.mentor.price_60].filter(Boolean).map(Number) as number[]
-  )
+  const priceOptions = [mentor.mentor.price_30, mentor.mentor.price_60].filter(Boolean).map(Number) as number[]
+  const minPrice = priceOptions.length > 0 ? Math.min(...priceOptions) : null
 
   const mentorsPath = isAuthenticated && user?.role === 'student' ? '/student/mentors' : '/mentors'
 
@@ -214,9 +213,9 @@ export const MentorDetailPage = () => {
 
                         {/* Цены */}
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-primary mb-1">
-                            от {minPrice.toLocaleString()} ₸
-                          </div>
+                        <div className="text-2xl font-bold text-primary mb-1">
+                          {minPrice !== null ? `от ${minPrice.toLocaleString()} ₸` : 'По запросу'}
+                        </div>
                           <div className="text-sm text-muted-foreground">за консультацию</div>
                         </div>
                       </div>
@@ -307,20 +306,6 @@ export const MentorDetailPage = () => {
                         </div>
                         <div className="text-lg font-semibold">
                           {Number(mentor.mentor.price_30).toLocaleString()} ₸
-                        </div>
-                      </div>
-                    )}
-
-                    {mentor.mentor.price_45 && (
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <div className="font-medium">45 минут</div>
-                          <div className="text-sm text-muted-foreground">
-                            Стандартная консультация
-                          </div>
-                        </div>
-                        <div className="text-lg font-semibold">
-                          {Number(mentor.mentor.price_45).toLocaleString()} ₸
                         </div>
                       </div>
                     )}

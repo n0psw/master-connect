@@ -565,7 +565,8 @@ function MentorCardComponent({
   basePath: string
   viewMode: 'grid' | 'list'
 }) {
-  const minPrice = Math.min(...[mentor.price_30, mentor.price_45, mentor.price_60].filter(Boolean) as number[])
+  const priceOptions = [mentor.price_30, mentor.price_60].filter(Boolean) as number[]
+  const minPrice = priceOptions.length > 0 ? Math.min(...priceOptions) : null
   const rating = Number(mentor.rating_avg) || 0
   const ratingCount = mentor.rating_count || 0
   const hasSlots = (mentor as any)?.available_slots?.length > 0
@@ -621,8 +622,10 @@ function MentorCardComponent({
           <div className="flex items-center gap-4 mt-4 md:mt-0 md:flex-shrink-0">
             <div className="flex-1 md:flex-none min-w-0">
               <div className="text-xs font-medium text-[#667085] mb-1">Стоимость</div>
-              <div className="text-lg font-bold text-[#101828] break-words">от {minPrice.toLocaleString()} ₸</div>
-              <div className="text-xs text-[#667085]">30/45/60 мин</div>
+              <div className="text-lg font-bold text-[#101828] break-words">
+                {minPrice !== null ? `от ${minPrice.toLocaleString()} ₸` : 'По запросу'}
+              </div>
+              <div className="text-xs text-[#667085]">30/60 мин</div>
             </div>
             <div className="flex flex-col gap-2 w-full md:w-auto md:min-w-[140px]">
               <Button variant="gradient" className="h-10 w-full md:w-auto" size="sm">
@@ -692,8 +695,10 @@ function MentorCardComponent({
           </div>
           <div className="rounded-lg border border-[rgba(255,180,87,0.3)] bg-[rgba(255,180,87,0.05)] p-2.5 min-w-0">
             <div className="text-xs font-medium text-[#101828] mb-1">Стоимость</div>
-            <div className="text-sm font-bold text-[#101828] break-words">от {minPrice.toLocaleString()} ₸</div>
-            <div className="text-[10px] text-[#667085] mt-0.5">30/45/60 мин</div>
+            <div className="text-sm font-bold text-[#101828] break-words">
+              {minPrice !== null ? `от ${minPrice.toLocaleString()} ₸` : 'По запросу'}
+            </div>
+            <div className="text-[10px] text-[#667085] mt-0.5">30/60 мин</div>
           </div>
         </div>
 

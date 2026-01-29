@@ -67,8 +67,8 @@ class AvailabilityRuleBase(BaseModel):
     @validator("slot_duration_minutes")
     def validate_slot_duration(cls, v):
         """Валидация длительности слота."""
-        if v not in [30, 45, 60]:
-            raise ValueError("Длительность слота должна быть 30, 45 или 60 минут")
+        if v not in [30, 60]:
+            raise ValueError("Длительность слота должна быть 30 или 60 минут")
         return v
 
 
@@ -343,7 +343,7 @@ class PopularWorkingHours(BaseModel):
                         weekday=i,
                         time_start="10:00",
                         time_end="22:00",
-                        slot_duration_minutes=45,
+                        slot_duration_minutes=60,
                         buffer_minutes=15,
                         breaks=[
                             BreakPeriod(start="13:00", end="14:00", title="Обед"),

@@ -52,7 +52,6 @@ const mentorProfileSchema = z.object({
   headline: z.string().optional(),
   bio: z.string().optional(),
   price_30: z.number().min(0, 'Цена не может быть отрицательной').optional().or(z.literal('')),
-  price_45: z.number().min(0, 'Цена не может быть отрицательной').optional().or(z.literal('')),
   price_60: z.number().min(0, 'Цена не может быть отрицательной').optional().or(z.literal('')),
   languages: z.string().optional(),
   subjects: z.string().optional(),
@@ -141,7 +140,6 @@ export const MentorProfilePage = () => {
       headline: mentorProfile.headline || '',
       bio: mentorProfile.bio || '',
       price_30: mentorProfile.price_30 || '',
-      price_45: mentorProfile.price_45 || '',
       price_60: mentorProfile.price_60 || '',
       languages: mentorProfile.languages?.join(', ') || '',
       subjects: mentorProfile.subjects?.join(', ') || '',
@@ -197,7 +195,6 @@ export const MentorProfilePage = () => {
       headline: data.headline,
       bio: data.bio,
       price_30: data.price_30 === '' ? null : Number(data.price_30),
-      price_45: data.price_45 === '' ? null : Number(data.price_45),
       price_60: data.price_60 === '' ? null : Number(data.price_60),
       languages: data.languages ? data.languages.split(',').map(lang => lang.trim()).filter(Boolean) : [],
       subjects: data.subjects ? data.subjects.split(',').map(subj => subj.trim()).filter(Boolean) : [],
@@ -448,7 +445,7 @@ export const MentorProfilePage = () => {
                     <DollarSign className="h-4 w-4 mr-2" />
                     Стоимость консультаций (в тенге)
                   </Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="price_30">30 минут</Label>
                       <Input
@@ -459,18 +456,6 @@ export const MentorProfilePage = () => {
                         step="1"
                         error={mentorErrors.price_30?.message}
                         {...registerMentor('price_30', { valueAsNumber: true })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="price_45">45 минут</Label>
-                      <Input
-                        id="price_45"
-                        type="number"
-                        placeholder="0"
-                        min="0"
-                        step="1"
-                        error={mentorErrors.price_45?.message}
-                        {...registerMentor('price_45', { valueAsNumber: true })}
                       />
                     </div>
                     <div>

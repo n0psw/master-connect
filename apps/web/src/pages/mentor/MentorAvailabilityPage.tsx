@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useForm } from 'react-hook-form'
@@ -20,7 +20,6 @@ import {
   X,
   CheckCircle,
 } from 'lucide-react'
-import { dayjsTz } from '@/shared/lib/dayjs'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
@@ -51,6 +50,84 @@ const settingsSchema = z.object({
 })
 
 type SettingsFormData = z.infer<typeof settingsSchema>
+
+const DAY_KEYS: Array<keyof WeeklySchedule> = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]
+
+const DAY_LABELS: Record<keyof WeeklySchedule, string> = {
+  monday: DAY_NAMES[0],
+  tuesday: DAY_NAMES[1],
+  wednesday: DAY_NAMES[2],
+  thursday: DAY_NAMES[3],
+  friday: DAY_NAMES[4],
+  saturday: DAY_NAMES[5],
+  sunday: DAY_NAMES[6],
+}
+
+const parseTimeToMinutes = (time: string): number | null => {
+  const match = /^(\d{1,2}):([0-5]\d)$/.exec(time)
+  if (!match) {
+    return null
+  }
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (Number.isNaN(hours) || hours > 23) {
+    return null
+  }
+  return hours * 60 + minutes
+}
+
+const formatMinutes = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
+}
+
+const cloneSlots = (slots: TimeSlot[]): TimeSlot[] => slots.map((slot) => ({ ...slot }))
+
+const validateWeeklySchedule = (schedule: WeeklySchedule): string | null => {
+  for (const dayKey of DAY_KEYS) {
+    const slots = schedule[dayKey]
+    if (!slots || slots.length === 0) {
+      continue
+    }
+
+    const parsedSlots: Array<{ start: number; end: number }> = []
+
+    for (let index = 0; index < slots.length; index += 1) {
+      const slot = slots[index]
+      const start = parseTimeToMinutes(slot.start_time)
+      const end = parseTimeToMinutes(slot.end_time)
+
+      if (start === null || end === null) {
+        return `РћС€РёР±РєР° РІ ${DAY_LABELS[dayKey]}: РїСЂРѕРІРµСЂСЊС‚Рµ С„РѕСЂРјР°С‚ РІСЂРµРјРµРЅРё РІ РёРЅС‚РµСЂРІР°Р»Рµ ${index + 1}.`
+      }
+
+      if (!isTimeSlotValid(slot)) {
+        return `РћС€РёР±РєР° РІ ${DAY_LABELS[dayKey]}: РєРѕРЅРµС† РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РїРѕР·Р¶Рµ РЅР°С‡Р°Р»Р° (РёРЅС‚РµСЂРІР°Р» ${index + 1}).`
+      }
+
+      parsedSlots.push({ start, end })
+    }
+
+    const sorted = [...parsedSlots].sort((a, b) => a.start - b.start)
+    for (let index = 1; index < sorted.length; index += 1) {
+      if (sorted[index].start < sorted[index - 1].end) {
+        return `РћС€РёР±РєР° РІ ${DAY_LABELS[dayKey]}: РёРЅС‚РµСЂРІР°Р»С‹ РїРµСЂРµСЃРµРєР°СЋС‚СЃСЏ.`
+      }
+    }
+  }
+
+  return null
+}
 
 // Компонент для редактирования временного слота
 interface TimeSlotEditorProps {
@@ -97,27 +174,32 @@ interface DayScheduleEditorProps {
 }
 
 const DayScheduleEditor = ({ day, slots, onUpdate }: DayScheduleEditorProps) => {
-  const [isEnabled, setIsEnabled] = useState(slots.length > 0)
-
-  useEffect(() => {
-    setIsEnabled(slots.length > 0)
-  }, [slots])
+  const isEnabled = slots.length > 0
 
   const handleToggle = () => {
     if (isEnabled) {
       onUpdate([])
-      setIsEnabled(false)
     } else {
       onUpdate([{ start_time: '09:00', end_time: '17:00' }])
-      setIsEnabled(true)
     }
   }
 
   const handleAddSlot = () => {
     const lastSlot = slots[slots.length - 1]
     const newStart = lastSlot ? lastSlot.end_time : '09:00'
-    const newEnd = dayjsTz(`2000-01-01 ${newStart}`).add(1, 'hour').format('HH:mm')
-    
+    const startMinutes = parseTimeToMinutes(newStart)
+    if (startMinutes === null) {
+      toast.error('РќРµСѓРґР°С‡РЅРѕРµ РІСЂРµРјСЏ РЅР°С‡Р°Р»Р°. РСЃРїСЂР°РІСЊС‚Рµ РїСЂРµРґС‹РґСѓС‰РёР№ РёРЅС‚РµСЂРІР°Р».')
+      return
+    }
+
+    const endMinutes = startMinutes + 60
+    if (endMinutes >= 24 * 60) {
+      toast.error('РќРµР»СЊР·СЏ РґРѕР±Р°РІРёС‚СЊ РёРЅС‚РµСЂРІР°Р» РїРѕСЃР»Рµ 24:00.')
+      return
+    }
+
+    const newEnd = formatMinutes(endMinutes)
     onUpdate([...slots, { start_time: newStart, end_time: newEnd }])
   }
 
@@ -130,9 +212,6 @@ const DayScheduleEditor = ({ day, slots, onUpdate }: DayScheduleEditorProps) => 
   const handleRemoveSlot = (index: number) => {
     const newSlots = slots.filter((_, i) => i !== index)
     onUpdate(newSlots)
-    if (newSlots.length === 0) {
-      setIsEnabled(false)
-    }
   }
 
   return (
@@ -194,23 +273,15 @@ export const MentorAvailabilityPage = () => {
   })
 
   // Загрузка данных
+  const [isScheduleDirty, setIsScheduleDirty] = useState(false)
+  const scheduleDirtyRef = useRef(false)
+  const settingsDirtyRef = useRef(false)
+  const hasLoadedRef = useRef(false)
+
   const { data: availability, isLoading, error } = useQuery(
     ['mentor-availability'],
     availabilityApi.getMyAvailability,
     {
-      onSuccess: (data) => {
-        if (data.weekly_schedule) {
-          setWeeklySchedule(data.weekly_schedule)
-        }
-        if (data.settings) {
-          reset({
-            timezone: data.settings.timezone,
-            buffer_time_minutes: data.settings.buffer_time_minutes,
-            max_bookings_per_day: data.settings.max_bookings_per_day,
-            advance_booking_days: data.settings.advance_booking_days,
-          })
-        }
-      },
       onError: (error: any) => {
         toast.error('Ошибка при загрузке расписания: ' + (error?.detail || error?.message))
       }
@@ -221,8 +292,9 @@ export const MentorAvailabilityPage = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty: isSettingsDirty },
     reset,
+    getValues,
   } = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
@@ -234,11 +306,68 @@ export const MentorAvailabilityPage = () => {
   })
 
   // Мутация для обновления настроек
+  useEffect(() => {
+    if (!availability) {
+      return
+    }
+
+    const isInitialLoad = !hasLoadedRef.current
+    if (availability.weekly_schedule && (isInitialLoad || !scheduleDirtyRef.current)) {
+      setWeeklySchedule(availability.weekly_schedule)
+      scheduleDirtyRef.current = false
+      setIsScheduleDirty(false)
+    }
+    if (availability.settings && (isInitialLoad || !settingsDirtyRef.current)) {
+      reset({
+        timezone: availability.settings.timezone,
+        buffer_time_minutes: availability.settings.buffer_time_minutes,
+        max_bookings_per_day: availability.settings.max_bookings_per_day,
+        advance_booking_days: availability.settings.advance_booking_days,
+      })
+      settingsDirtyRef.current = false
+    }
+    hasLoadedRef.current = true
+  }, [availability, reset])
+
+  useEffect(() => {
+    settingsDirtyRef.current = isSettingsDirty
+  }, [isSettingsDirty])
+
+  const markScheduleDirty = () => {
+    if (!scheduleDirtyRef.current) {
+      scheduleDirtyRef.current = true
+      setIsScheduleDirty(true)
+    }
+  }
+
+  const setWeeklyScheduleFromUser = (nextSchedule: WeeklySchedule) => {
+    markScheduleDirty()
+    setWeeklySchedule(nextSchedule)
+  }
+
+  const updateScheduleDay = (dayKey: keyof WeeklySchedule, slots: TimeSlot[]) => {
+    markScheduleDirty()
+    setWeeklySchedule((prev) => ({
+      ...prev,
+      [dayKey]: slots,
+    }))
+  }
+
   const updateSettingsMutation = useMutation(
     (data: AvailabilitySettings) => availabilityApi.updateSettings(data),
     {
-      onSuccess: () => {
+      onSuccess: (data) => {
         toast.success('Настройки сохранены!')
+        const nextValues = data
+          ? {
+              timezone: data.timezone,
+              buffer_time_minutes: data.buffer_time_minutes,
+              max_bookings_per_day: data.max_bookings_per_day,
+              advance_booking_days: data.advance_booking_days,
+            }
+          : getValues()
+        reset(nextValues)
+        settingsDirtyRef.current = false
         queryClient.invalidateQueries(['mentor-availability'])
       },
       onError: (error: any) => {
@@ -251,8 +380,13 @@ export const MentorAvailabilityPage = () => {
   const updateScheduleMutation = useMutation(
     (schedule: WeeklySchedule) => availabilityApi.updateSchedule(schedule),
     {
-      onSuccess: () => {
+      onSuccess: (data) => {
         toast.success('Расписание сохранено!')
+        if (data) {
+          setWeeklySchedule(data)
+        }
+        scheduleDirtyRef.current = false
+        setIsScheduleDirty(false)
         queryClient.invalidateQueries(['mentor-availability'])
       },
       onError: (error: any) => {
@@ -266,6 +400,11 @@ export const MentorAvailabilityPage = () => {
   }
 
   const handleSaveSchedule = () => {
+    const validationError = validateWeeklySchedule(weeklySchedule)
+    if (validationError) {
+      toast.error(validationError)
+      return
+    }
     updateScheduleMutation.mutate(weeklySchedule)
   }
 
@@ -297,13 +436,13 @@ export const MentorAvailabilityPage = () => {
         // Каждый день 10:00-20:00
         const everydaySlot = [{ start_time: '10:00', end_time: '20:00' }]
         newSchedule = {
-          monday: everydaySlot,
-          tuesday: everydaySlot,
-          wednesday: everydaySlot,
-          thursday: everydaySlot,
-          friday: everydaySlot,
-          saturday: everydaySlot,
-          sunday: everydaySlot,
+          monday: cloneSlots(everydaySlot),
+          tuesday: cloneSlots(everydaySlot),
+          wednesday: cloneSlots(everydaySlot),
+          thursday: cloneSlots(everydaySlot),
+          friday: cloneSlots(everydaySlot),
+          saturday: cloneSlots(everydaySlot),
+          sunday: cloneSlots(everydaySlot),
         }
         break
       case 'flexible':
@@ -313,21 +452,23 @@ export const MentorAvailabilityPage = () => {
           { start_time: '18:00', end_time: '22:00' }
         ]
         newSchedule = {
-          monday: flexibleSlots,
-          tuesday: flexibleSlots,
-          wednesday: flexibleSlots,
-          thursday: flexibleSlots,
-          friday: flexibleSlots,
+          monday: cloneSlots(flexibleSlots),
+          tuesday: cloneSlots(flexibleSlots),
+          wednesday: cloneSlots(flexibleSlots),
+          thursday: cloneSlots(flexibleSlots),
+          friday: cloneSlots(flexibleSlots),
           saturday: [{ start_time: '10:00', end_time: '16:00' }],
           sunday: [],
         }
         break
     }
 
-    setWeeklySchedule(newSchedule)
+    setWeeklyScheduleFromUser(newSchedule)
     setShowQuickSetup(false)
     toast.success('Шаблон применен! Не забудьте сохранить изменения.')
   }
+
+  const hasUnsavedChanges = isScheduleDirty || isSettingsDirty
 
   if (isLoading) {
     return (
@@ -374,6 +515,19 @@ export const MentorAvailabilityPage = () => {
             <p className="text-muted-foreground">
               Настройте свою доступность для консультаций
             </p>
+            <div className="flex items-center gap-2 text-sm mt-2">
+              {hasUnsavedChanges ? (
+                <>
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <span className="text-amber-700">Есть несохраненные изменения</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-green-700">Все изменения сохранены</span>
+                </>
+              )}
+            </div>
           </div>
           
           <Button onClick={() => setShowQuickSetup(!showQuickSetup)}>
@@ -588,12 +742,7 @@ export const MentorAvailabilityPage = () => {
                   key={key}
                   day={day as DayOfWeek}
                   slots={weeklySchedule[key as keyof WeeklySchedule]}
-                  onUpdate={(slots) =>
-                    setWeeklySchedule({
-                      ...weeklySchedule,
-                      [key]: slots,
-                    })
-                  }
+                  onUpdate={(slots) => updateScheduleDay(key as keyof WeeklySchedule, slots)}
                 />
               ))}
             </div>
@@ -623,3 +772,5 @@ export const MentorAvailabilityPage = () => {
     </>
   )
 }
+
+

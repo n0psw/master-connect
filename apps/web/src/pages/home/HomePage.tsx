@@ -64,8 +64,8 @@ const InstagramPostCard = ({ post }: { post: InstagramPost }) => {
 }
 
 const MentorCardComponent = ({ mentor }: { mentor: MentorCard }) => {
-  const prices = [mentor.price_30, mentor.price_45, mentor.price_60].filter((p): p is number => p !== null && p !== undefined)
-  const minPrice = prices.length > 0 ? Math.min(...prices) : 0
+  const prices = [mentor.price_30, mentor.price_60].filter((p): p is number => p !== null && p !== undefined)
+  const minPrice = prices.length > 0 ? Math.min(...prices) : null
   const rating = Number(mentor.rating_avg) || 0
   const avatarUrl = getImageUrl(mentor.avatar_url)
   const university = mentor.university
@@ -126,7 +126,9 @@ const MentorCardComponent = ({ mentor }: { mentor: MentorCard }) => {
           <div className="flex items-center justify-between pt-2 border-t border-gray-100">
             <div>
               <div className="text-xs text-gray-500">Стоимость</div>
-              <div className="text-base font-semibold text-gray-900">от {minPrice.toLocaleString()} ₸</div>
+              <div className="text-base font-semibold text-gray-900">
+                {minPrice !== null ? `от ${minPrice.toLocaleString()} ₸` : 'По запросу'}
+              </div>
             </div>
             <Button variant="outline" size="sm" className="h-9">
               Подробнее
@@ -139,8 +141,8 @@ const MentorCardComponent = ({ mentor }: { mentor: MentorCard }) => {
 }
 
 const MentorSliderCard = ({ mentor }: { mentor: MentorCard }) => {
-  const prices = [mentor.price_30, mentor.price_45, mentor.price_60].filter((p): p is number => p !== null && p !== undefined)
-  const minPrice = prices.length > 0 ? Math.min(...prices) : 0
+  const prices = [mentor.price_30, mentor.price_60].filter((p): p is number => p !== null && p !== undefined)
+  const minPrice = prices.length > 0 ? Math.min(...prices) : null
   const rating = Number(mentor.rating_avg) || 0
   const avatarUrl = getImageUrl(mentor.avatar_url)
   const location = [mentor.city, mentor.country].filter(Boolean).join(', ')
@@ -216,7 +218,7 @@ const MentorSliderCard = ({ mentor }: { mentor: MentorCard }) => {
           <div>
             <div className="text-xs text-gray-500 mb-1">Стоимость консультации</div>
             <div className="text-xl font-bold text-gray-900">
-              от {minPrice.toLocaleString()} ₸
+              {minPrice !== null ? `от ${minPrice.toLocaleString()} ₸` : 'По запросу'}
             </div>
           </div>
           <div className="inline-flex items-center justify-center rounded-full bg-primary text-white h-12 w-12 group-hover:translate-x-1 group-hover:scale-110 transition-all shadow-lg">

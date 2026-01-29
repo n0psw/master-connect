@@ -234,7 +234,7 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
     if (!formData.email) newErrors.email = 'Email обязателен'
     if (!formData.password || formData.password.length < 8) newErrors.password = 'Пароль должен быть минимум 8 символов'
     if (!formData.name) newErrors.name = 'Имя обязательно'
-    if (!formData.price_30 && !formData.price_45 && !formData.price_60) {
+    if (!formData.price_30 && !formData.price_60) {
       newErrors.price_30 = 'Укажите хотя бы одну цену'
     }
     
@@ -314,7 +314,7 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
           </div>
 
           {/* Цены за консультации */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Цена 30 мин (₸)</label>
               <Input
@@ -323,15 +323,6 @@ const CreateMentorModal = ({ isOpen, onClose, onSuccess }: CreateMentorModalProp
                 onChange={(e) => setFormData({ ...formData, price_30: e.target.value ? Number(e.target.value) : undefined })}
                 placeholder="15000"
                 className={errors.price_30 ? 'border-red-500' : ''}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Цена 45 мин (₸)</label>
-              <Input
-                type="number"
-                value={formData.price_45 || ''}
-                onChange={(e) => setFormData({ ...formData, price_45: e.target.value ? Number(e.target.value) : undefined })}
-                placeholder="22500"
               />
             </div>
             <div>
